@@ -353,7 +353,7 @@ pub fn find_matching_servers(
 ) -> Result<Vec<String>> {
     let mut matching = Vec::new();
 
-    for (name, _server) in &config.mcp_servers {
+    for name in config.mcp_servers.keys() {
         if let Some(pattern_str) = pattern {
             // Simple pattern matching - could be enhanced with regex
             if name.contains(pattern_str) {

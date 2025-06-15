@@ -17,21 +17,12 @@ pub struct McpServer {
 }
 
 /// Represents the Claude Desktop configuration structure
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     #[serde(rename = "mcpServers")]
     pub mcp_servers: HashMap<String, McpServer>,
     #[serde(flatten)]
     pub other: HashMap<String, serde_json::Value>,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            mcp_servers: HashMap::new(),
-            other: HashMap::new(),
-        }
-    }
 }
 
 impl Config {

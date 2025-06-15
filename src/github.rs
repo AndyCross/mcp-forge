@@ -78,7 +78,7 @@ impl GitHubClient {
 
         let content = if github_response.encoding == "base64" {
             let decoded = base64::engine::general_purpose::STANDARD
-                .decode(&github_response.content.replace('\n', ""))
+                .decode(github_response.content.replace('\n', ""))
                 .context("Failed to decode base64 content")?;
             String::from_utf8(decoded).context("Invalid UTF-8 in decoded content")?
         } else {
@@ -127,7 +127,7 @@ impl GitHubClient {
 
         let content = if github_response.encoding == "base64" {
             let decoded = base64::engine::general_purpose::STANDARD
-                .decode(&github_response.content.replace('\n', ""))
+                .decode(github_response.content.replace('\n', ""))
                 .context("Failed to decode base64 content")?;
             String::from_utf8(decoded).context("Invalid UTF-8 in decoded content")?
         } else {

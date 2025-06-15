@@ -2,7 +2,6 @@ use anyhow::{Context, Result};
 use std::path::PathBuf;
 
 /// Utility functions for MCP-Forge
-
 /// Get the Claude Desktop configuration directory
 pub fn get_config_dir() -> Result<PathBuf> {
     let home = dirs::home_dir().context("Could not find home directory")?;

@@ -19,19 +19,10 @@ pub struct ProfileInfo {
 }
 
 /// Global profile configuration
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ProfileConfig {
     pub current_profile: Option<String>,
     pub profiles: HashMap<String, ProfileInfo>,
-}
-
-impl Default for ProfileConfig {
-    fn default() -> Self {
-        Self {
-            current_profile: None,
-            profiles: HashMap::new(),
-        }
-    }
 }
 
 /// Handle profile command routing
@@ -230,7 +221,7 @@ async fn handle_profile_sync(from: String, to: String, dry_run: bool) -> Result<
     // Copy the entire configuration
     source_config.save(Some(&to)).await?;
 
-    println!("{}", format!("✓ Configuration synced successfully").green());
+    println!("{}", "✓ Configuration synced successfully".green());
     println!("  Servers copied: {}", source_config.mcp_servers.len());
 
     Ok(())
@@ -313,7 +304,7 @@ async fn preview_profile_sync(
     let mut new_servers = Vec::new();
     let mut overwritten_servers = Vec::new();
 
-    for (name, _) in &source.mcp_servers {
+    for name in source.mcp_servers.keys() {
         if target.mcp_servers.contains_key(name) {
             overwritten_servers.push(name);
         } else {
@@ -486,8 +477,10 @@ mod tests {
 
     #[test]
     fn test_profile_config_serialization() {
-        let mut config = ProfileConfig::default();
-        config.current_profile = Some("test".to_string());
+        let config = ProfileConfig {
+            current_profile: Some("test".to_string()),
+            ..Default::default()
+        };
 
         let profile_info = ProfileInfo {
             name: "test".to_string(),
@@ -497,6 +490,7 @@ mod tests {
             server_count: 5,
         };
 
+        let mut config = config;
         config.profiles.insert("test".to_string(), profile_info);
 
         let json = serde_json::to_string(&config).unwrap();

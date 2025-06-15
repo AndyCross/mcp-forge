@@ -251,8 +251,8 @@ impl TemplateManager {
     /// Load catalog (from cache or GitHub)
     pub async fn load_catalog(&self) -> Result<TemplateCatalog> {
         // Try cache first
-        if let Ok(catalog) = self.load_cached_catalog() {
-            if let Some(catalog) = catalog {
+        if let Ok(Some(catalog)) = self.load_cached_catalog() {
+            if !self.is_cache_expired().unwrap_or(true) {
                 return Ok(catalog);
             }
         }
@@ -382,9 +382,11 @@ impl TemplateManager {
         self.save_catalog_cache(&catalog)?;
 
         // Update cache metadata
-        let mut metadata = CacheMetadata::default();
-        metadata.last_refresh = chrono::Utc::now();
-        metadata.expires_at = chrono::Utc::now() + chrono::Duration::days(30);
+        let metadata = CacheMetadata {
+            last_refresh: chrono::Utc::now(),
+            expires_at: chrono::Utc::now() + chrono::Duration::days(30),
+            ..Default::default()
+        };
         self.save_cache_metadata(&metadata)?;
 
         Ok(())

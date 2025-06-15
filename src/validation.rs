@@ -356,20 +356,19 @@ fn validate_environment(server: &McpServer, result: &mut ValidationResult) {
                 || key.to_uppercase().contains("DIR")
                 || key.to_uppercase().contains("FILE"))
                 && !value.is_empty()
+                && !Path::new(value).exists()
             {
-                if !Path::new(value).exists() {
-                    result.issues.push(ValidationIssue {
-                        issue_type: "Environment Path Not Found".to_string(),
-                        message: format!(
-                            "Environment variable '{}' points to non-existent path '{}'",
-                            key, value
-                        ),
-                        severity: ValidationStatus::Warning,
-                        fix_suggestion: Some(
-                            "Verify the path exists or will be created at runtime".to_string(),
-                        ),
-                    });
-                }
+                result.issues.push(ValidationIssue {
+                    issue_type: "Environment Path Not Found".to_string(),
+                    message: format!(
+                        "Environment variable '{}' points to non-existent path '{}'",
+                        key, value
+                    ),
+                    severity: ValidationStatus::Warning,
+                    fix_suggestion: Some(
+                        "Verify the path exists or will be created at runtime".to_string(),
+                    ),
+                });
             }
         }
     }
@@ -624,7 +623,6 @@ fn display_diagnostic(diagnostic: &SystemDiagnostic) {
 }
 
 /// Helper functions
-
 fn get_platform_info() -> String {
     format!("{} {}", std::env::consts::OS, std::env::consts::ARCH)
 }
@@ -662,38 +660,33 @@ fn command_in_path(command: &str) -> bool {
     Command::new("which")
         .arg(command)
         .output()
-        .map_or(false, |output| output.status.success())
+        .is_ok_and(|output| output.status.success())
 }
 
+#[cfg(unix)]
 fn is_executable(path: &Path) -> bool {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        path.metadata()
-            .map_or(false, |metadata| metadata.permissions().mode() & 0o111 != 0)
-    }
-    #[cfg(not(unix))]
-    {
-        // On Windows, assume executability based on extension
-        path.extension()
-            .and_then(|ext| ext.to_str())
-            .map_or(false, |ext| {
-                matches!(ext.to_lowercase().as_str(), "exe" | "bat" | "cmd" | "com")
-            })
-    }
+    use std::os::unix::fs::PermissionsExt;
+    path.metadata()
+        .is_ok_and(|metadata| metadata.permissions().mode() & 0o111 != 0)
+}
+
+#[cfg(not(unix))]
+fn is_executable(path: &Path) -> bool {
+    // On Windows, assume executability based on extension
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .map_or(false, |ext| {
+            matches!(ext.to_lowercase().as_str(), "exe" | "bat" | "cmd" | "com")
+        })
 }
 
 fn is_writable(path: &Path) -> bool {
     if path.exists() {
-        std::fs::OpenOptions::new()
-            .write(true)
-            .append(true)
-            .open(path)
-            .is_ok()
+        std::fs::OpenOptions::new().append(true).open(path).is_ok()
     } else {
         // Check if parent directory is writable
-        path.parent().map_or(false, |parent| {
-            std::fs::metadata(parent).map_or(false, |metadata| !metadata.permissions().readonly())
+        path.parent().is_some_and(|parent| {
+            std::fs::metadata(parent).is_ok_and(|metadata| !metadata.permissions().readonly())
         })
     }
 }
@@ -745,7 +738,7 @@ pub async fn validate_config(
 
         let mut has_errors = false;
         for (name, server) in servers {
-            let result = validate_server(&name, &server, deep, requirements).await;
+            let result = validate_server(&name, server, deep, requirements).await;
             match result.status {
                 ValidationStatus::Valid => println!("✅ Server '{}' is valid", name),
                 ValidationStatus::Warning => {

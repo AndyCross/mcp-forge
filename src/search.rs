@@ -113,7 +113,7 @@ fn matches_criteria(server: &ServerInfo, criteria: &SearchCriteria) -> bool {
 
     // Check author filter
     if let Some(author) = &criteria.author {
-        if server.author.as_ref().map_or(true, |a| a != author) {
+        if server.author.as_ref() != Some(author) {
             return false;
         }
     }
@@ -130,10 +130,8 @@ fn matches_criteria(server: &ServerInfo, criteria: &SearchCriteria) -> bool {
     }
 
     // Check tags filter
-    if !criteria.tags.is_empty() {
-        if !criteria.tags.iter().any(|tag| server.tags.contains(tag)) {
-            return false;
-        }
+    if !criteria.tags.is_empty() && !criteria.tags.iter().any(|tag| server.tags.contains(tag)) {
+        return false;
     }
 
     true
@@ -408,8 +406,16 @@ pub fn rank_templates(
         Some("updated") => {
             ranked.sort_by(|a, b| b.1.last_updated.cmp(&a.1.last_updated));
         }
-        Some("relevance") | _ => {
-            // Default: Sort by combined relevance and quality score
+        Some("relevance") => {
+            ranked.sort_by(|a, b| {
+                let score_a = a.1.relevance_score + a.1.quality_score;
+                let score_b = b.1.relevance_score + b.1.quality_score;
+                score_b
+                    .partial_cmp(&score_a)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+        }
+        _ => {
             ranked.sort_by(|a, b| {
                 let score_a = a.1.relevance_score + a.1.quality_score;
                 let score_b = b.1.relevance_score + b.1.quality_score;
@@ -466,10 +472,7 @@ mod tests {
                 "database".to_string(),
                 McpServer {
                     command: "psql".to_string(),
-                    args: vec!["-h", "localhost"]
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect(),
+                    args: ["-h", "localhost"].iter().map(|s| s.to_string()).collect(),
                     env: None,
                     other: HashMap::new(),
                 },

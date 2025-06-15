@@ -423,7 +423,7 @@ async fn restore_full_config(backup_config: &Config, profile: Option<&str>) -> R
 /// Get current git branch if available
 async fn get_git_branch() -> Option<String> {
     tokio::process::Command::new("git")
-        .args(&["branch", "--show-current"])
+        .args(["branch", "--show-current"])
         .output()
         .await
         .ok()
@@ -442,7 +442,7 @@ async fn get_git_branch() -> Option<String> {
 /// Get current git commit if available
 async fn get_git_commit() -> Option<String> {
     tokio::process::Command::new("git")
-        .args(&["rev-parse", "--short", "HEAD"])
+        .args(["rev-parse", "--short", "HEAD"])
         .output()
         .await
         .ok()
