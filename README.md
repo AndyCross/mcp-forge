@@ -50,17 +50,39 @@ MCP-Forge is a comprehensive command-line tool designed to streamline the manage
 
 ### Installation
 
-#### From Source (Recommended)
+#### Package Managers (Recommended)
+
+**Homebrew (macOS/Linux)**
+```bash
+brew tap andycross/tap
+brew install mcp-forge
+```
+
+**Scoop (Windows)**
+```powershell
+scoop bucket add andycross https://github.com/AndyCross/scoop-bucket
+scoop install mcp-forge
+```
+
+**Cargo (All Platforms)**
+```bash
+cargo install --git https://github.com/AndyCross/mcp-forge
+```
+
+#### Direct Download
+```bash
+# Download latest release binary
+curl -L https://github.com/AndyCross/mcp-forge/releases/latest/download/mcp-forge -o mcp-forge
+chmod +x mcp-forge
+sudo mv mcp-forge /usr/local/bin/
+```
+
+#### From Source
 ```bash
 git clone https://github.com/AndyCross/mcp-forge.git
 cd mcp-forge
 cargo build --release
 ./target/release/mcp-forge --help
-```
-
-#### Using Cargo
-```bash
-cargo install mcp-forge
 ```
 
 ### Basic Usage
