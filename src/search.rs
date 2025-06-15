@@ -1,6 +1,5 @@
-use anyhow::Result;
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::collections::HashMap;
 use crate::config::McpServer;
 

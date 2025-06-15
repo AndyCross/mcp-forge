@@ -103,6 +103,7 @@ pub struct TemplateManager {
     cache_dir: PathBuf,
     templates_dir: PathBuf,
     handlebars: Handlebars<'static>,
+    github_client: crate::github::GitHubClient,
 }
 
 impl TemplateManager {
@@ -130,6 +131,7 @@ impl TemplateManager {
             cache_dir,
             templates_dir,
             handlebars,
+            github_client: crate::github::GitHubClient::new(),
         })
     }
 
@@ -237,8 +239,7 @@ impl TemplateManager {
         }
 
         // Fetch from GitHub
-        let github_client = crate::github::GitHubClient::new();
-        let template = github_client.fetch_template(name).await?;
+        let template = self.github_client.fetch_template(name).await?;
         
         // Cache the template
         self.save_template_cache(&template)?;
@@ -248,39 +249,26 @@ impl TemplateManager {
 
     /// List available templates
     pub async fn list_templates(&self) -> Result<Vec<TemplateMetadata>> {
-        // Try cache first if not expired
-        if !self.is_cache_expired()? {
-            if let Some(catalog) = self.load_cached_catalog()? {
-                return Ok(catalog.templates.into_values().collect());
-            }
-        }
-
-        // Fetch from GitHub
-        let github_client = crate::github::GitHubClient::new();
-        let catalog = github_client.fetch_template_catalog().await?;
-        
-        // Cache the catalog
-        self.save_catalog_cache(&catalog)?;
-        
+        let catalog = self.load_catalog().await?;
         Ok(catalog.templates.into_values().collect())
     }
 
-    /// Search templates by term
-    pub async fn search_templates(&self, term: &str) -> Result<Vec<TemplateMetadata>> {
-        let templates = self.list_templates().await?;
-        let term_lower = term.to_lowercase();
+    /// Load catalog (from cache or GitHub)
+    pub async fn load_catalog(&self) -> Result<TemplateCatalog> {
+        // Try cache first
+        if let Ok(catalog) = self.load_cached_catalog() {
+            if let Some(catalog) = catalog {
+                return Ok(catalog);
+            }
+        }
         
-        let filtered: Vec<_> = templates
-            .into_iter()
-            .filter(|t| {
-                t.name.to_lowercase().contains(&term_lower)
-                    || t.description.to_lowercase().contains(&term_lower)
-                    || t.tags.iter().any(|tag| tag.to_lowercase().contains(&term_lower))
-                    || t.author.to_lowercase().contains(&term_lower)
-            })
-            .collect();
+        // Fetch from GitHub
+        let catalog = self.github_client.fetch_template_catalog().await?;
         
-        Ok(filtered)
+        // Cache it
+        self.save_catalog_cache(&catalog)?;
+        
+        Ok(catalog)
     }
 
     /// Apply template with variable substitution

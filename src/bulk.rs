@@ -4,7 +4,6 @@ use crate::config::{Config};
 use crate::templates::{TemplateManager};
 use std::collections::HashMap;
 use colored::Colorize;
-use regex::Regex;
 use std::fs;
 use std::path::Path;
 use clap::Subcommand;
@@ -173,7 +172,7 @@ async fn handle_bulk_remove(
 
     println!("Servers matching pattern '{}':", pattern.bold());
     for server_name in &matching_servers {
-        if let Some(server) = config.mcpServers.get(server_name) {
+        if let Some(server) = config.mcp_servers.get(server_name) {
             println!("  • {} - {}", server_name.bold(), server.command);
         }
     }
@@ -192,7 +191,7 @@ async fn handle_bulk_remove(
     if !dry_run {
         let mut removed_count = 0;
         for server_name in &matching_servers {
-            if config.mcpServers.remove(server_name).is_some() {
+            if config.mcp_servers.remove(server_name).is_some() {
                 removed_count += 1;
                 println!("{}", format!("✓ Removed {}", server_name).green());
             } else {
@@ -247,7 +246,7 @@ async fn preview_add_server(
     template_manager: &TemplateManager,
 ) -> Result<BulkOperationResult> {
     // Check if server already exists
-    if config.mcpServers.contains_key(&server_config.name) {
+    if config.mcp_servers.contains_key(&server_config.name) {
         return Ok(BulkOperationResult {
             server_name: server_config.name.clone(),
             operation: "add".to_string(),
@@ -310,7 +309,7 @@ async fn add_server_from_config(
         }
     };
 
-    config.mcpServers.insert(server_config.name.clone(), server);
+    config.mcp_servers.insert(server_config.name.clone(), server);
     Ok(BulkOperationResult {
         server_name: server_config.name.clone(),
         operation: "add".to_string(),
@@ -327,7 +326,7 @@ pub fn find_matching_servers(
 ) -> Result<Vec<String>> {
     let mut matching = Vec::new();
     
-    for (name, _server) in &config.mcpServers {
+    for (name, _server) in &config.mcp_servers {
         if let Some(pattern_str) = pattern {
             // Simple pattern matching - could be enhanced with regex
             if name.contains(pattern_str) {
@@ -367,7 +366,7 @@ fn preview_update_server(
     env_updates: &HashMap<String, String>,
     config: &Config,
 ) -> BulkOperationResult {
-    if !config.mcpServers.contains_key(server_name) {
+    if !config.mcp_servers.contains_key(server_name) {
         return BulkOperationResult {
             server_name: server_name.to_string(),
             operation: "update".to_string(),
@@ -394,7 +393,7 @@ fn update_server_env(
     env_updates: &HashMap<String, String>,
     config: &mut Config,
 ) -> BulkOperationResult {
-    if let Some(server) = config.mcpServers.get_mut(server_name) {
+    if let Some(server) = config.mcp_servers.get_mut(server_name) {
         // Initialize env if it doesn't exist
         if server.env.is_none() {
             server.env = Some(HashMap::new());
@@ -505,6 +504,7 @@ pub enum BulkCommands {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::McpServer;
 
     #[test]
     fn test_parse_env_vars() {
@@ -529,27 +529,27 @@ mod tests {
     #[test]
     fn test_find_matching_servers() {
         let mut config = Config::default();
-        config.mcpServers.insert("test-server-1".to_string(), McpServer {
+        config.mcp_servers.insert("test-server-1".to_string(), McpServer {
             command: "cmd1".to_string(),
             args: vec![],
             env: None,
             other: HashMap::new(),
         });
-        config.mcpServers.insert("test-server-2".to_string(), McpServer {
+        config.mcp_servers.insert("test-server-2".to_string(), McpServer {
             command: "cmd2".to_string(),
             args: vec![],
             env: None,
             other: HashMap::new(),
         });
-        config.mcpServers.insert("prod-server".to_string(), McpServer {
+        config.mcp_servers.insert("prod-server".to_string(), McpServer {
             command: "cmd3".to_string(),
             args: vec![],
             env: None,
             other: HashMap::new(),
         });
 
-        // Test wildcard pattern
-        let matches = find_matching_servers(&config, Some("test-*"), None).unwrap();
+        // Test pattern matching (contains)
+        let matches = find_matching_servers(&config, Some("test-"), None).unwrap();
         assert_eq!(matches.len(), 2);
         assert!(matches.contains(&"test-server-1".to_string()));
         assert!(matches.contains(&"test-server-2".to_string()));

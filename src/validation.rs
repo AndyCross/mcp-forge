@@ -1,7 +1,6 @@
 use anyhow::{anyhow, Result};
 use colored::Colorize;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use serde::Serialize;
 use std::path::Path;
 use std::process::Command;
 use crate::config::{Config, McpServer};
@@ -82,14 +81,14 @@ pub async fn handle_validate(
     println!("{}", "────────────────────────".cyan());
 
     let results = if let Some(name) = server_name {
-        if let Some(server) = config.mcpServers.get(&name) {
+        if let Some(server) = config.mcp_servers.get(&name) {
             vec![validate_server(&name, server, deep, requirements).await]
         } else {
             return Err(anyhow!("Server '{}' not found", name));
         }
     } else {
         let mut results = Vec::new();
-        for (name, server) in &config.mcpServers {
+        for (name, server) in &config.mcp_servers {
             results.push(validate_server(name, server, deep, requirements).await);
         }
         results
@@ -123,7 +122,7 @@ pub async fn handle_health_check(profile: Option<String>) -> Result<()> {
     let mut health_issues = Vec::new();
     let mut healthy_count = 0;
 
-    for (name, server) in &config.mcpServers {
+    for (name, server) in &config.mcp_servers {
         print!("Checking {} ... ", name);
         let result = validate_server(name, server, true, true).await;
         
@@ -145,7 +144,7 @@ pub async fn handle_health_check(profile: Option<String>) -> Result<()> {
 
     println!();
     println!("Health Summary:");
-    println!("  Healthy servers: {}/{}", healthy_count, config.mcpServers.len());
+    println!("  Healthy servers: {}/{}", healthy_count, config.mcp_servers.len());
     
     if !health_issues.is_empty() {
         println!("  Issues found: {}", health_issues.len());
@@ -468,7 +467,7 @@ async fn run_system_diagnostic(profile: Option<&str>) -> Result<SystemDiagnostic
 
     // Load config to get server count
     if let Ok(config) = Config::load(profile).await {
-        diagnostic.total_servers = config.mcpServers.len();
+        diagnostic.total_servers = config.mcp_servers.len();
     }
 
     Ok(diagnostic)

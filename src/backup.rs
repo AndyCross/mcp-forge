@@ -1,13 +1,12 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use chrono::{DateTime, Duration, Utc};
 use colored::Colorize;
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use clap::Subcommand;
-use crate::config::{Config, McpServer};
+use crate::config::Config;
 use crate::utils;
 
 /// Backup metadata
@@ -180,7 +179,7 @@ async fn handle_backup_restore(
     } else {
         restore_full_config(&backup_config, profile.as_deref()).await?;
         println!("{}", "✓ Configuration restored successfully".green());
-        println!("  Servers restored: {}", backup_config.mcpServers.len());
+        println!("  Servers restored: {}", backup_config.mcp_servers.len());
     }
 
     Ok(())
@@ -250,7 +249,7 @@ pub async fn create_backup(config: &Config, name: &str) -> Result<PathBuf> {
     let metadata = BackupMetadata {
         name: name.to_string(),
         created_at: Utc::now(),
-        servers_count: config.mcpServers.len(),
+        servers_count: config.mcp_servers.len(),
         description: None,
         git_branch: get_git_branch().await,
         git_commit: get_git_commit().await,
@@ -332,12 +331,12 @@ async fn preview_restore(
     println!("{}", "──────────────".cyan());
 
     let servers_to_restore = if let Some(filter) = server_filter {
-        backup.mcpServers
+        backup.mcp_servers
             .iter()
             .filter(|(name, _)| name == &filter)
             .collect::<HashMap<_, _>>()
     } else {
-        backup.mcpServers.iter().collect()
+        backup.mcp_servers.iter().collect()
     };
 
     if servers_to_restore.is_empty() {
@@ -347,7 +346,7 @@ async fn preview_restore(
 
     println!("Servers to be restored:");
     for (name, server) in &servers_to_restore {
-        let status = if current.mcpServers.contains_key(*name) {
+        let status = if current.mcp_servers.contains_key(*name) {
             "OVERWRITE".yellow()
         } else {
             "NEW".green()
@@ -357,9 +356,9 @@ async fn preview_restore(
     }
 
     if server_filter.is_none() {
-        let current_only: Vec<_> = current.mcpServers
+        let current_only: Vec<_> = current.mcp_servers
             .keys()
-            .filter(|name| !backup.mcpServers.contains_key(*name))
+            .filter(|name| !backup.mcp_servers.contains_key(*name))
             .collect();
 
         if !current_only.is_empty() {
@@ -380,12 +379,12 @@ async fn restore_single_server(
     server_name: &str,
     profile: Option<&str>,
 ) -> Result<()> {
-    let server = backup_config.mcpServers
+    let server = backup_config.mcp_servers
         .get(server_name)
         .ok_or_else(|| anyhow!("Server '{}' not found in backup", server_name))?;
 
     let mut current_config = Config::load(profile).await.unwrap_or_default();
-    current_config.mcpServers.insert(server_name.to_string(), server.clone());
+    current_config.mcp_servers.insert(server_name.to_string(), server.clone());
     
     current_config.save(profile).await?;
     Ok(())
@@ -395,17 +394,6 @@ async fn restore_single_server(
 async fn restore_full_config(backup_config: &Config, profile: Option<&str>) -> Result<()> {
     backup_config.save(profile).await?;
     Ok(())
-}
-
-/// Generate automatic backup name
-async fn generate_auto_backup_name() -> String {
-    let timestamp = Utc::now().format("%Y%m%d_%H%M%S");
-    
-    if let Some(branch) = get_git_branch().await {
-        format!("auto_{}_{}", timestamp, sanitize_filename(&branch))
-    } else {
-        format!("auto_{}", timestamp)
-    }
 }
 
 /// Get current git branch if available

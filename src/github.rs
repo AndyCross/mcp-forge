@@ -1,9 +1,8 @@
 use anyhow::{Context, Result};
-use reqwest::header::HeaderMap;
 use serde::Deserialize;
+use crate::templates::{Template, TemplateCatalog};
 use std::collections::HashMap;
 use base64::Engine;
-use crate::templates::{Template, TemplateCatalog, TemplateMetadata};
 
 /// GitHub repository information for templates
 #[derive(Debug, Clone)]
@@ -16,15 +15,15 @@ pub struct TemplateRepository {
 impl Default for TemplateRepository {
     fn default() -> Self {
         Self {
-            owner: "mcp-forge".to_string(),
-            repo: "templates".to_string(),
+            owner: "modelcontextprotocol".to_string(),
+            repo: "servers".to_string(),
             branch: "main".to_string(),
         }
     }
 }
 
 /// GitHub API response for repository files
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 struct GitHubFileResponse {
     content: String,
     encoding: String,
@@ -38,46 +37,31 @@ pub struct GitHubClient {
 }
 
 impl GitHubClient {
+    /// Create a new GitHub client
     pub fn new() -> Self {
-        let mut headers = HeaderMap::new();
-        headers.insert("User-Agent", "mcp-forge/0.1.0".parse().unwrap());
-        headers.insert("Accept", "application/vnd.github.v3+json".parse().unwrap());
-        
-        let client = reqwest::Client::builder()
-            .default_headers(headers)
-            .timeout(std::time::Duration::from_secs(30))
-            .build()
-            .expect("Failed to create HTTP client");
-        
         let repo = TemplateRepository::default();
         let base_url = format!("https://api.github.com/repos/{}/{}", repo.owner, repo.repo);
         
         Self {
-            client,
+            client: reqwest::Client::new(),
             repo,
             base_url,
         }
     }
 
-    /// Fetch template catalog from GitHub repository
+    /// Fetch the template catalog from GitHub
     pub async fn fetch_template_catalog(&self) -> Result<TemplateCatalog> {
-        let url = format!("{}/contents/catalog.json", self.base_url);
+        let url = format!("{}/contents/catalog.json?ref={}", self.base_url, self.repo.branch);
         
         let response = self.client
             .get(&url)
-            .query(&[("ref", &self.repo.branch)])
+            .header("User-Agent", "mcp-forge")
             .send()
             .await
-            .context("Failed to fetch template catalog from GitHub")?;
+            .context("Failed to fetch template catalog")?;
 
         if !response.status().is_success() {
-            if response.status() == 404 {
-                anyhow::bail!("Template catalog not found. The template repository may not be initialized yet.");
-            } else if response.status() == 403 {
-                anyhow::bail!("GitHub API rate limit exceeded. Please try again later or use cached templates.");
-            } else {
-                anyhow::bail!("GitHub API error: {}", response.status());
-            }
+            anyhow::bail!("Failed to fetch catalog: HTTP {}", response.status());
         }
 
         let file_response: GitHubFileResponse = response
@@ -86,46 +70,40 @@ impl GitHubClient {
             .context("Failed to parse GitHub API response")?;
 
         let content = if file_response.encoding == "base64" {
-            let decoded = base64::engine::general_purpose::STANDARD
-                .decode(&file_response.content.replace('\n', ""))
-                .context("Failed to decode base64 content")?;
-            String::from_utf8(decoded)
-                .context("Template catalog content is not valid UTF-8")?
+            String::from_utf8(
+                base64::engine::general_purpose::STANDARD
+                    .decode(&file_response.content.replace('\n', ""))
+                    .context("Failed to decode base64 content")?
+            ).context("Invalid UTF-8 in decoded content")?
         } else {
             file_response.content
         };
 
         let catalog: TemplateCatalog = serde_json::from_str(&content)
-            .context("Failed to parse template catalog JSON")?;
+            .context("Failed to parse template catalog")?;
 
         Ok(catalog)
     }
 
-    /// Fetch individual template from GitHub repository
+    /// Fetch a specific template from GitHub
     pub async fn fetch_template(&self, template_name: &str) -> Result<Template> {
-        // First, get the catalog to find the template path
+        // First get the catalog to find the template path
         let catalog = self.fetch_template_catalog().await?;
         
         let template_metadata = catalog.templates.get(template_name)
-            .ok_or_else(|| anyhow::anyhow!("Template '{}' not found in catalog", template_name))?;
+            .with_context(|| format!("Template '{}' not found in catalog", template_name))?;
 
-        let url = format!("{}/contents/{}", self.base_url, template_metadata.path);
+        let url = format!("{}/contents/{}?ref={}", self.base_url, template_metadata.path, self.repo.branch);
         
         let response = self.client
             .get(&url)
-            .query(&[("ref", &self.repo.branch)])
+            .header("User-Agent", "mcp-forge")
             .send()
             .await
-            .with_context(|| format!("Failed to fetch template '{}' from GitHub", template_name))?;
+            .with_context(|| format!("Failed to fetch template '{}'", template_name))?;
 
         if !response.status().is_success() {
-            if response.status() == 404 {
-                anyhow::bail!("Template '{}' not found in repository", template_name);
-            } else if response.status() == 403 {
-                anyhow::bail!("GitHub API rate limit exceeded. Please try again later or use cached templates.");
-            } else {
-                anyhow::bail!("GitHub API error: {}", response.status());
-            }
+            anyhow::bail!("Failed to fetch template '{}': HTTP {}", template_name, response.status());
         }
 
         let file_response: GitHubFileResponse = response
@@ -134,68 +112,19 @@ impl GitHubClient {
             .context("Failed to parse GitHub API response")?;
 
         let content = if file_response.encoding == "base64" {
-            let decoded = base64::engine::general_purpose::STANDARD
-                .decode(&file_response.content.replace('\n', ""))
-                .context("Failed to decode base64 content")?;
-            String::from_utf8(decoded)
-                .with_context(|| format!("Template '{}' content is not valid UTF-8", template_name))?
+            String::from_utf8(
+                base64::engine::general_purpose::STANDARD
+                    .decode(&file_response.content.replace('\n', ""))
+                    .context("Failed to decode base64 content")?
+            ).context("Invalid UTF-8 in decoded content")?
         } else {
             file_response.content
         };
 
         let template: Template = serde_json::from_str(&content)
-            .with_context(|| format!("Failed to parse template '{}' JSON", template_name))?;
+            .with_context(|| format!("Failed to parse template '{}'", template_name))?;
 
         Ok(template)
-    }
-
-    /// List available templates from catalog
-    pub async fn list_templates(&self) -> Result<Vec<String>> {
-        let catalog = self.fetch_template_catalog().await?;
-        Ok(catalog.templates.keys().cloned().collect())
-    }
-
-    /// Check if template repository is accessible
-    pub async fn check_repository(&self) -> Result<bool> {
-        let url = format!("{}", self.base_url);
-        
-        let response = self.client
-            .get(&url)
-            .send()
-            .await;
-
-        match response {
-            Ok(resp) => Ok(resp.status().is_success()),
-            Err(_) => Ok(false),
-        }
-    }
-
-    /// Get repository information
-    pub async fn get_repository_info(&self) -> Result<RepositoryInfo> {
-        let url = format!("{}", self.base_url);
-        
-        let response = self.client
-            .get(&url)
-            .send()
-            .await
-            .context("Failed to fetch repository information")?;
-
-        if !response.status().is_success() {
-            anyhow::bail!("Failed to access repository: {}", response.status());
-        }
-
-        let repo_info: GitHubRepository = response
-            .json()
-            .await
-            .context("Failed to parse repository information")?;
-
-        Ok(RepositoryInfo {
-            name: repo_info.name,
-            description: repo_info.description,
-            stars: repo_info.stargazers_count,
-            updated_at: repo_info.updated_at,
-            html_url: repo_info.html_url,
-        })
     }
 
     /// Create a beautiful error message for GitHub failures
@@ -254,85 +183,6 @@ impl GitHubClient {
                 error_str
             )
         }
-    }
-}
-
-/// Repository information structure
-#[derive(Debug, Clone)]
-pub struct RepositoryInfo {
-    pub name: String,
-    pub description: Option<String>,
-    pub stars: u32,
-    pub updated_at: String,
-    pub html_url: String,
-}
-
-/// GitHub repository API response
-#[derive(Debug, Deserialize)]
-struct GitHubRepository {
-    name: String,
-    description: Option<String>,
-    stargazers_count: u32,
-    updated_at: String,
-    html_url: String,
-}
-
-/// Create a mock template catalog for testing/development
-pub fn create_mock_catalog() -> TemplateCatalog {
-    let mut templates = HashMap::new();
-    
-    // Filesystem template
-    templates.insert("filesystem".to_string(), TemplateMetadata {
-        name: "filesystem".to_string(),
-        version: "1.0.0".to_string(),
-        description: "Access local filesystem from Claude".to_string(),
-        author: "Anthropic".to_string(),
-        tags: vec!["filesystem".to_string(), "official".to_string(), "core".to_string()],
-        platforms: vec!["windows".to_string(), "macos".to_string(), "linux".to_string()],
-        category: "official".to_string(),
-        path: "templates/official/filesystem.json".to_string(),
-    });
-    
-    // Brave Search template
-    templates.insert("brave-search".to_string(), TemplateMetadata {
-        name: "brave-search".to_string(),
-        version: "1.0.0".to_string(),
-        description: "Search the web using Brave Search API".to_string(),
-        author: "Anthropic".to_string(),
-        tags: vec!["search".to_string(), "web".to_string(), "official".to_string()],
-        platforms: vec!["windows".to_string(), "macos".to_string(), "linux".to_string()],
-        category: "official".to_string(),
-        path: "templates/official/brave-search.json".to_string(),
-    });
-    
-    // SQLite template
-    templates.insert("sqlite".to_string(), TemplateMetadata {
-        name: "sqlite".to_string(),
-        version: "1.0.0".to_string(),
-        description: "Query SQLite databases from Claude".to_string(),
-        author: "Anthropic".to_string(),
-        tags: vec!["database".to_string(), "sql".to_string(), "official".to_string()],
-        platforms: vec!["windows".to_string(), "macos".to_string(), "linux".to_string()],
-        category: "official".to_string(),
-        path: "templates/official/sqlite.json".to_string(),
-    });
-    
-    // Postgres template
-    templates.insert("postgres".to_string(), TemplateMetadata {
-        name: "postgres".to_string(),
-        version: "1.0.0".to_string(),
-        description: "Query PostgreSQL databases from Claude".to_string(),
-        author: "Anthropic".to_string(),
-        tags: vec!["database".to_string(), "sql".to_string(), "official".to_string()],
-        platforms: vec!["windows".to_string(), "macos".to_string(), "linux".to_string()],
-        category: "official".to_string(),
-        path: "templates/official/postgres.json".to_string(),
-    });
-    
-    TemplateCatalog {
-        version: "1.0.0".to_string(),
-        last_updated: chrono::Utc::now().to_rfc3339(),
-        templates,
     }
 }
 
@@ -526,17 +376,9 @@ mod tests {
     #[test]
     fn test_github_client_creation() {
         let client = GitHubClient::new();
-        assert_eq!(client.repo.owner, "mcp-forge");
-        assert_eq!(client.repo.repo, "templates");
+        assert_eq!(client.repo.owner, "modelcontextprotocol");
+        assert_eq!(client.repo.repo, "servers");
         assert_eq!(client.repo.branch, "main");
-    }
-
-    #[test]
-    fn test_mock_catalog_creation() {
-        let catalog = create_mock_catalog();
-        assert!(!catalog.templates.is_empty());
-        assert!(catalog.templates.contains_key("filesystem"));
-        assert!(catalog.templates.contains_key("brave-search"));
     }
 
     #[test]

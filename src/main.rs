@@ -12,7 +12,6 @@ mod bulk;
 mod profiles;
 mod search;
 
-use cli::*;
 
 // Re-export enum types from their respective modules
 pub use backup::BackupCommands;

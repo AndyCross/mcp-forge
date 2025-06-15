@@ -1,10 +1,10 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-use crate::config::{Config, McpServer};
+use crate::config::Config;
 use crate::utils;
 use clap::Subcommand;
 
@@ -163,7 +163,7 @@ async fn handle_profile_switch(name: String) -> Result<()> {
     
     // Show basic info about the profile
     if let Ok(config) = Config::load(Some(&name)).await {
-        println!("  Servers in this profile: {}", config.mcpServers.len());
+        println!("  Servers in this profile: {}", config.mcp_servers.len());
     }
     
     Ok(())
@@ -186,10 +186,10 @@ async fn handle_profile_current() -> Result<()> {
         
         // Show servers in current profile
         if let Ok(config) = Config::load(Some(current_name)).await {
-            if !config.mcpServers.is_empty() {
+            if !config.mcp_servers.is_empty() {
                 println!();
                 println!("Servers in this profile:");
-                for name in config.mcpServers.keys() {
+                for name in config.mcp_servers.keys() {
                     println!("  • {}", name);
                 }
             }
@@ -231,7 +231,7 @@ async fn handle_profile_sync(from: String, to: String, dry_run: bool) -> Result<
     source_config.save(Some(&to)).await?;
     
     println!("{}", format!("✓ Configuration synced successfully").green());
-    println!("  Servers copied: {}", source_config.mcpServers.len());
+    println!("  Servers copied: {}", source_config.mcp_servers.len());
     
     Ok(())
 }
@@ -294,16 +294,16 @@ async fn preview_profile_sync(
 ) -> Result<()> {
     println!("{}", "Profile Sync Preview".cyan().bold());
     println!("{}", "───────────────────".cyan());
-    println!("From: {} ({} servers)", from_name.bold(), source.mcpServers.len());
-    println!("To: {} ({} servers)", to_name.bold(), target.mcpServers.len());
+    println!("From: {} ({} servers)", from_name.bold(), source.mcp_servers.len());
+    println!("To: {} ({} servers)", to_name.bold(), target.mcp_servers.len());
     println!();
 
     // Show what would be added/overwritten
     let mut new_servers = Vec::new();
     let mut overwritten_servers = Vec::new();
     
-    for (name, _) in &source.mcpServers {
-        if target.mcpServers.contains_key(name) {
+    for (name, _) in &source.mcp_servers {
+        if target.mcp_servers.contains_key(name) {
             overwritten_servers.push(name);
         } else {
             new_servers.push(name);
@@ -327,8 +327,8 @@ async fn preview_profile_sync(
     }
     
     // Show servers that would be removed from target
-    let removed_servers: Vec<_> = target.mcpServers.keys()
-        .filter(|name| !source.mcpServers.contains_key(*name))
+    let removed_servers: Vec<_> = target.mcp_servers.keys()
+        .filter(|name| !source.mcp_servers.contains_key(*name))
         .collect();
     
     if !removed_servers.is_empty() {
@@ -414,7 +414,7 @@ pub async fn update_profile_server_count(profile_name: Option<&str>) -> Result<(
         
         if let Some(profile_info) = profile_config.profiles.get_mut(name) {
             if let Ok(config) = Config::load(Some(name)).await {
-                profile_info.server_count = config.mcpServers.len();
+                profile_info.server_count = config.mcp_servers.len();
                 save_profile_config(&profile_config).await?;
             }
         }
