@@ -1,7 +1,7 @@
+use crate::templates::{Template, TemplateCatalog};
 use anyhow::{anyhow, Context, Result};
 use base64::{self, Engine};
 use serde::Deserialize;
-use crate::templates::{Template, TemplateCatalog};
 
 #[cfg(test)]
 use std::collections::HashMap;
@@ -55,7 +55,8 @@ impl GitHubClient {
             self.base_url, self.repo.owner, self.repo.repo, self.repo.branch
         );
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .header("User-Agent", "mcp-forge")
             .send()
@@ -84,8 +85,8 @@ impl GitHubClient {
             github_response.content
         };
 
-        let catalog: TemplateCatalog = serde_json::from_str(&content)
-            .context("Failed to parse template catalog JSON")?;
+        let catalog: TemplateCatalog =
+            serde_json::from_str(&content).context("Failed to parse template catalog JSON")?;
 
         Ok(catalog)
     }
@@ -97,7 +98,8 @@ impl GitHubClient {
             self.base_url, self.repo.owner, self.repo.repo, template_name, self.repo.branch
         );
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .header("User-Agent", "mcp-forge")
             .send()
@@ -106,7 +108,10 @@ impl GitHubClient {
 
         if !response.status().is_success() {
             if response.status() == 404 {
-                return Err(anyhow!("Template '{}' not found in repository", template_name));
+                return Err(anyhow!(
+                    "Template '{}' not found in repository",
+                    template_name
+                ));
             }
             return Err(anyhow!(
                 "GitHub API request failed with status: {} - {}",
@@ -138,17 +143,21 @@ impl GitHubClient {
     /// Create a helpful error message for GitHub-related errors
     pub fn create_github_error_message(error: &anyhow::Error) -> String {
         let error_str = error.to_string().to_lowercase();
-        
+
         if error_str.contains("network") || error_str.contains("connection") {
-            "Network connection failed. Please check your internet connection and try again.".to_string()
+            "Network connection failed. Please check your internet connection and try again."
+                .to_string()
         } else if error_str.contains("timeout") {
-            "Request timed out. GitHub might be experiencing issues. Please try again later.".to_string()
+            "Request timed out. GitHub might be experiencing issues. Please try again later."
+                .to_string()
         } else if error_str.contains("rate limit") {
-            "GitHub API rate limit exceeded. Please wait a few minutes before trying again.".to_string()
+            "GitHub API rate limit exceeded. Please wait a few minutes before trying again."
+                .to_string()
         } else if error_str.contains("404") || error_str.contains("not found") {
             "Template not found in the repository. It may have been moved or removed.".to_string()
         } else if error_str.contains("403") || error_str.contains("forbidden") {
-            "Access denied. The repository might be private or you may have exceeded rate limits.".to_string()
+            "Access denied. The repository might be private or you may have exceeded rate limits."
+                .to_string()
         } else {
             format!("GitHub API error: {}", error)
         }
@@ -201,8 +210,8 @@ mod tests {
             requirements: None,
             setup_instructions: None,
         };
-        
+
         assert_eq!(template.name, "test");
         assert_eq!(template.version, "1.0.0");
     }
-} 
+}

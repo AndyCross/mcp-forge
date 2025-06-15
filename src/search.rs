@@ -1,7 +1,7 @@
+use crate::config::McpServer;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use std::collections::HashMap;
-use crate::config::McpServer;
 
 /// Search criteria for filtering servers and templates
 #[derive(Debug, Clone)]
@@ -69,7 +69,7 @@ impl From<(String, McpServer)> for ServerInfo {
             template: None, // Will be enriched if available
             tags: vec![],   // Will be enriched if available
             platform: get_current_platform(),
-            author: None,   // Will be enriched if available
+            author: None,       // Will be enriched if available
             requirements: None, // Will be enriched if available
         }
     }
@@ -92,7 +92,10 @@ pub fn filter_servers(
         filtered.retain(|server| {
             server.name.to_lowercase().contains(&text_lower)
                 || server.command.to_lowercase().contains(&text_lower)
-                || server.args.iter().any(|arg| arg.to_lowercase().contains(&text_lower))
+                || server
+                    .args
+                    .iter()
+                    .any(|arg| arg.to_lowercase().contains(&text_lower))
         });
     }
 
@@ -148,7 +151,9 @@ pub fn sort_servers(mut servers: Vec<ServerInfo>, options: &ListOptions) -> Vec<
             }
             "author" => {
                 servers.sort_by(|a, b| {
-                    a.author.as_deref().unwrap_or("")
+                    a.author
+                        .as_deref()
+                        .unwrap_or("")
                         .cmp(b.author.as_deref().unwrap_or(""))
                 });
             }
@@ -186,7 +191,7 @@ fn format_as_table(servers: &[ServerInfo], options: &ListOptions) -> String {
     }
 
     let mut output = String::new();
-    
+
     // Header
     output.push_str("┌─────────────────────┬─────────────────────┬─────────────────────┐\n");
     output.push_str("│ Name                │ Command             │ Arguments           │\n");
@@ -197,7 +202,7 @@ fn format_as_table(servers: &[ServerInfo], options: &ListOptions) -> String {
         let name = truncate_string(&server.name, 19);
         let command = truncate_string(&server.command, 19);
         let args = truncate_string(&server.args.join(" "), 19);
-        
+
         output.push_str(&format!(
             "│ {:<19} │ {:<19} │ {:<19} │\n",
             name, command, args
@@ -236,11 +241,11 @@ fn format_as_default(servers: &[ServerInfo], options: &ListOptions) -> String {
     for server in servers {
         output.push_str(&format!("• {}\n", server.name));
         output.push_str(&format!("  Command: {}\n", server.command));
-        
+
         if !server.args.is_empty() {
             output.push_str(&format!("  Args: {}\n", server.args.join(" ")));
         }
-        
+
         if let Some(env) = &server.env {
             if !env.is_empty() {
                 output.push_str("  Environment:\n");
@@ -283,10 +288,16 @@ pub fn calculate_ranking(
     let mut ranking = SearchRanking::default();
 
     // Calculate relevance score based on name and description matches
-    let name_match = if template_name.to_lowercase().contains(&search_term.to_lowercase()) {
+    let name_match = if template_name
+        .to_lowercase()
+        .contains(&search_term.to_lowercase())
+    {
         if template_name.to_lowercase() == search_term.to_lowercase() {
             1.0 // Exact match
-        } else if template_name.to_lowercase().starts_with(&search_term.to_lowercase()) {
+        } else if template_name
+            .to_lowercase()
+            .starts_with(&search_term.to_lowercase())
+        {
             0.8 // Prefix match
         } else {
             0.6 // Contains match
@@ -296,7 +307,11 @@ pub fn calculate_ranking(
     };
 
     let description_match = if let Some(meta) = metadata {
-        if meta.description.to_lowercase().contains(&search_term.to_lowercase()) {
+        if meta
+            .description
+            .to_lowercase()
+            .contains(&search_term.to_lowercase())
+        {
             0.4
         } else {
             0.0
@@ -319,8 +334,16 @@ pub fn calculate_ranking(
 
         // Popular tags get bonus points
         let popular_tags = ["database", "filesystem", "search", "api", "web", "core"];
-        let tag_bonus: f32 = meta.tags.iter()
-            .map(|tag| if popular_tags.contains(&tag.as_str()) { 0.1 } else { 0.05 })
+        let tag_bonus: f32 = meta
+            .tags
+            .iter()
+            .map(|tag| {
+                if popular_tags.contains(&tag.as_str()) {
+                    0.1
+                } else {
+                    0.05
+                }
+            })
             .sum();
         ranking.quality_score += tag_bonus;
 
@@ -345,9 +368,7 @@ pub fn calculate_ranking(
                 };
                 base + (ranking.quality_score * 1000.0) as u32
             }
-            "community" => {
-                (ranking.quality_score * 2000.0) as u32 + 100
-            }
+            "community" => (ranking.quality_score * 2000.0) as u32 + 100,
             _ => (ranking.quality_score * 500.0) as u32 + 10,
         };
 
@@ -378,7 +399,11 @@ pub fn rank_templates(
             ranked.sort_by(|a, b| b.1.download_count.cmp(&a.1.download_count));
         }
         Some("rating") => {
-            ranked.sort_by(|a, b| b.1.community_rating.partial_cmp(&a.1.community_rating).unwrap_or(std::cmp::Ordering::Equal));
+            ranked.sort_by(|a, b| {
+                b.1.community_rating
+                    .partial_cmp(&a.1.community_rating)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
         }
         Some("updated") => {
             ranked.sort_by(|a, b| b.1.last_updated.cmp(&a.1.last_updated));
@@ -388,7 +413,9 @@ pub fn rank_templates(
             ranked.sort_by(|a, b| {
                 let score_a = a.1.relevance_score + a.1.quality_score;
                 let score_b = b.1.relevance_score + b.1.quality_score;
-                score_b.partial_cmp(&score_a).unwrap_or(std::cmp::Ordering::Equal)
+                score_b
+                    .partial_cmp(&score_a)
+                    .unwrap_or(std::cmp::Ordering::Equal)
             });
         }
     }
@@ -426,18 +453,27 @@ mod tests {
     #[test]
     fn test_filter_servers() {
         let servers = vec![
-            ("test1".to_string(), McpServer {
-                command: "npx".to_string(),
-                args: vec!["filesystem".to_string()],
-                env: None,
-                other: HashMap::new(),
-            }),
-            ("database".to_string(), McpServer {
-                command: "psql".to_string(),
-                args: vec!["-h", "localhost"].iter().map(|s| s.to_string()).collect(),
-                env: None,
-                other: HashMap::new(),
-            }),
+            (
+                "test1".to_string(),
+                McpServer {
+                    command: "npx".to_string(),
+                    args: vec!["filesystem".to_string()],
+                    env: None,
+                    other: HashMap::new(),
+                },
+            ),
+            (
+                "database".to_string(),
+                McpServer {
+                    command: "psql".to_string(),
+                    args: vec!["-h", "localhost"]
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect(),
+                    env: None,
+                    other: HashMap::new(),
+                },
+            ),
         ];
 
         let criteria = SearchCriteria {
@@ -497,7 +533,7 @@ mod tests {
     fn test_calculate_ranking() {
         let ranking = calculate_ranking("filesystem", "file", None);
         assert!(ranking.relevance_score > 0.0);
-        
+
         let ranking_exact = calculate_ranking("filesystem", "filesystem", None);
         assert!(ranking_exact.relevance_score > ranking.relevance_score);
     }
@@ -507,4 +543,4 @@ mod tests {
         assert_eq!(truncate_string("hello", 10), "hello     ");
         assert_eq!(truncate_string("hello world", 8), "hello...");
     }
-} 
+}

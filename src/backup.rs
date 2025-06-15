@@ -1,13 +1,13 @@
+use crate::config::Config;
+use crate::utils;
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Duration, Utc};
+use clap::Subcommand;
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use clap::Subcommand;
-use crate::config::Config;
-use crate::utils;
 
 /// Backup metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -68,15 +68,13 @@ pub async fn handle_backup_command(action: BackupCommands, profile: Option<Strin
         BackupCommands::Create { name, auto_name } => {
             create_backup_with_options(name, auto_name, profile).await
         }
-        BackupCommands::List => {
-            handle_backup_list().await
-        }
-        BackupCommands::Restore { backup, preview, server } => {
-            restore_backup(backup, preview, server, profile).await
-        }
-        BackupCommands::Clean { older_than, force } => {
-            handle_backup_clean(older_than, force).await
-        }
+        BackupCommands::List => handle_backup_list().await,
+        BackupCommands::Restore {
+            backup,
+            preview,
+            server,
+        } => restore_backup(backup, preview, server, profile).await,
+        BackupCommands::Clean { older_than, force } => handle_backup_clean(older_than, force).await,
     }
 }
 
@@ -97,23 +95,23 @@ pub async fn create_backup_with_options(
     profile: Option<String>,
 ) -> Result<()> {
     let config = Config::load(profile.as_deref()).await?;
-    
+
     let backup_name = if auto_name {
         format!("auto_{}", chrono::Utc::now().format("%Y%m%d_%H%M%S"))
     } else {
         name.unwrap_or_else(|| chrono::Utc::now().format("%Y%m%d_%H%M%S").to_string())
     };
-    
+
     let backup_path = create_backup(&config, &backup_name).await?;
     println!("✅ Backup created: {}", backup_path.display());
-    
+
     Ok(())
 }
 
 /// List all available backups
 async fn handle_backup_list() -> Result<()> {
     let backups = list_backups().await?;
-    
+
     if backups.is_empty() {
         println!("{}", "No backups found.".yellow());
         return Ok(());
@@ -130,24 +128,29 @@ async fn handle_backup_list() -> Result<()> {
         let age = format_duration_since(backup.metadata.created_at);
         println!();
         println!("• {}", backup.metadata.name.bold());
-        println!("  Created: {} ({})", 
-                 backup.metadata.created_at.format("%Y-%m-%d %H:%M:%S UTC"),
-                 age.dimmed());
+        println!(
+            "  Created: {} ({})",
+            backup.metadata.created_at.format("%Y-%m-%d %H:%M:%S UTC"),
+            age.dimmed()
+        );
         println!("  Servers: {}", backup.metadata.servers_count);
-        
+
         if let Some(desc) = &backup.metadata.description {
             println!("  Description: {}", desc.italic());
         }
-        
+
         if let Some(branch) = &backup.metadata.git_branch {
             println!("  Git branch: {}", branch.green());
         }
-        
+
         if let Some(commit) = &backup.metadata.git_commit {
             println!("  Git commit: {}", commit.dimmed());
         }
-        
-        println!("  File: {}", backup.file_path.display().to_string().dimmed());
+
+        println!(
+            "  File: {}",
+            backup.file_path.display().to_string().dimmed()
+        );
     }
 
     Ok(())
@@ -160,7 +163,8 @@ async fn handle_backup_restore(
     server_filter: Option<String>,
     profile: Option<String>,
 ) -> Result<()> {
-    let backup = find_backup(&backup_name).await?
+    let backup = find_backup(&backup_name)
+        .await?
         .ok_or_else(|| anyhow!("Backup '{}' not found", backup_name))?;
 
     let backup_config = load_backup_config(&backup.file_path).await?;
@@ -171,11 +175,17 @@ async fn handle_backup_restore(
         return Ok(());
     }
 
-    println!("{}", format!("Restoring from backup '{}'...", backup.metadata.name).cyan());
+    println!(
+        "{}",
+        format!("Restoring from backup '{}'...", backup.metadata.name).cyan()
+    );
 
     if let Some(server_name) = server_filter {
         restore_single_server(&backup_config, &server_name, profile.as_deref()).await?;
-        println!("{}", format!("✓ Server '{}' restored successfully", server_name).green());
+        println!(
+            "{}",
+            format!("✓ Server '{}' restored successfully", server_name).green()
+        );
     } else {
         restore_full_config(&backup_config, profile.as_deref()).await?;
         println!("{}", "✓ Configuration restored successfully".green());
@@ -195,7 +205,7 @@ async fn handle_backup_clean(older_than: Option<String>, force: bool) -> Result<
 
     let backups = list_backups().await?;
     let cutoff_date = Utc::now() - duration;
-    
+
     let old_backups: Vec<_> = backups
         .into_iter()
         .filter(|backup| backup.metadata.created_at < cutoff_date)
@@ -206,7 +216,10 @@ async fn handle_backup_clean(older_than: Option<String>, force: bool) -> Result<
         return Ok(());
     }
 
-    println!("{}", format!("Found {} old backup(s) to clean:", old_backups.len()).cyan());
+    println!(
+        "{}",
+        format!("Found {} old backup(s) to clean:", old_backups.len()).cyan()
+    );
     for backup in &old_backups {
         let age = format_duration_since(backup.metadata.created_at);
         println!("  • {} ({})", backup.metadata.name, age.dimmed());
@@ -229,12 +242,18 @@ async fn handle_backup_clean(older_than: Option<String>, force: bool) -> Result<
             deleted_count += 1;
             println!("{}", format!("✓ Deleted {}", backup.metadata.name).green());
         } else {
-            println!("{}", format!("✗ Failed to delete {}", backup.metadata.name).red());
+            println!(
+                "{}",
+                format!("✗ Failed to delete {}", backup.metadata.name).red()
+            );
         }
     }
 
     println!();
-    println!("{}", format!("Cleanup complete. Deleted {} backup(s).", deleted_count).green());
+    println!(
+        "{}",
+        format!("Cleanup complete. Deleted {} backup(s).", deleted_count).green()
+    );
     Ok(())
 }
 
@@ -244,7 +263,7 @@ pub async fn create_backup(config: &Config, name: &str) -> Result<PathBuf> {
     fs::create_dir_all(&backup_dir)?;
 
     let backup_file = backup_dir.join(format!("{}.json", sanitize_filename(name)));
-    
+
     // Create metadata
     let metadata = BackupMetadata {
         name: name.to_string(),
@@ -263,24 +282,24 @@ pub async fn create_backup(config: &Config, name: &str) -> Result<PathBuf> {
 
     // Write backup file
     fs::write(&backup_file, serde_json::to_string_pretty(&backup_data)?)?;
-    
+
     Ok(backup_file)
 }
 
 /// List all available backups
 async fn list_backups() -> Result<Vec<BackupEntry>> {
     let backup_dir = utils::get_backup_dir()?;
-    
+
     if !backup_dir.exists() {
         return Ok(Vec::new());
     }
 
     let mut backups = Vec::new();
-    
+
     for entry in fs::read_dir(backup_dir)? {
         let entry = entry?;
         let path = entry.path();
-        
+
         if path.extension().and_then(|s| s.to_str()) == Some("json") {
             if let Ok(backup_data) = load_backup_data(&path).await {
                 backups.push(BackupEntry {
@@ -297,21 +316,21 @@ async fn list_backups() -> Result<Vec<BackupEntry>> {
 /// Find a backup by name or partial name
 async fn find_backup(name: &str) -> Result<Option<BackupEntry>> {
     let backups = list_backups().await?;
-    
+
     // First try exact match
     for backup in &backups {
         if backup.metadata.name == name {
             return Ok(Some(backup.clone()));
         }
     }
-    
+
     // Then try partial match
     for backup in &backups {
         if backup.metadata.name.contains(name) {
             return Ok(Some(backup.clone()));
         }
     }
-    
+
     Ok(None)
 }
 
@@ -331,7 +350,8 @@ async fn preview_restore(
     println!("{}", "──────────────".cyan());
 
     let servers_to_restore = if let Some(filter) = server_filter {
-        backup.mcp_servers
+        backup
+            .mcp_servers
             .iter()
             .filter(|(name, _)| name == &filter)
             .collect::<HashMap<_, _>>()
@@ -351,12 +371,13 @@ async fn preview_restore(
         } else {
             "NEW".green()
         };
-        
+
         println!("  {} {} - {}", status, name.bold(), server.command);
     }
 
     if server_filter.is_none() {
-        let current_only: Vec<_> = current.mcp_servers
+        let current_only: Vec<_> = current
+            .mcp_servers
             .keys()
             .filter(|name| !backup.mcp_servers.contains_key(*name))
             .collect();
@@ -379,13 +400,16 @@ async fn restore_single_server(
     server_name: &str,
     profile: Option<&str>,
 ) -> Result<()> {
-    let server = backup_config.mcp_servers
+    let server = backup_config
+        .mcp_servers
         .get(server_name)
         .ok_or_else(|| anyhow!("Server '{}' not found in backup", server_name))?;
 
     let mut current_config = Config::load(profile).await.unwrap_or_default();
-    current_config.mcp_servers.insert(server_name.to_string(), server.clone());
-    
+    current_config
+        .mcp_servers
+        .insert(server_name.to_string(), server.clone());
+
     current_config.save(profile).await?;
     Ok(())
 }
@@ -451,7 +475,7 @@ async fn load_backup_data(path: &Path) -> Result<BackupData> {
 /// Parse duration string (e.g., "30d", "1w", "24h")
 fn parse_duration(duration_str: &str) -> Result<Duration> {
     let duration_str = duration_str.trim().to_lowercase();
-    
+
     if let Some(num_str) = duration_str.strip_suffix('d') {
         let days: i64 = num_str.parse()?;
         Ok(Duration::days(days))
@@ -466,7 +490,8 @@ fn parse_duration(duration_str: &str) -> Result<Duration> {
         Ok(Duration::minutes(minutes))
     } else {
         // Try parsing as days
-        let days: i64 = duration_str.parse()
+        let days: i64 = duration_str
+            .parse()
             .map_err(|_| anyhow!("Invalid duration format. Use format like '30d', '1w', '24h'"))?;
         Ok(Duration::days(days))
     }
@@ -475,7 +500,7 @@ fn parse_duration(duration_str: &str) -> Result<Duration> {
 /// Format duration since a timestamp
 fn format_duration_since(timestamp: DateTime<Utc>) -> String {
     let duration = Utc::now().signed_duration_since(timestamp);
-    
+
     if duration.num_days() > 0 {
         format!("{} day(s) ago", duration.num_days())
     } else if duration.num_hours() > 0 {
@@ -531,4 +556,4 @@ mod tests {
         assert_eq!(metadata.name, "test");
         assert_eq!(metadata.servers_count, 5);
     }
-} 
+}

@@ -112,21 +112,21 @@ impl TemplateManager {
         let cache_dir = dirs::cache_dir()
             .ok_or_else(|| anyhow::anyhow!("Unable to determine cache directory"))?
             .join("mcp-forge");
-        
+
         let templates_dir = cache_dir.join("templates");
-        
+
         std::fs::create_dir_all(&cache_dir)?;
         std::fs::create_dir_all(&templates_dir)?;
-        
+
         let mut handlebars = Handlebars::new();
         handlebars.set_strict_mode(true);
-        
+
         // Register built-in helpers
         handlebars.register_helper("os", Box::new(os_helper));
         handlebars.register_helper("arch", Box::new(arch_helper));
         handlebars.register_helper("home_dir", Box::new(home_dir_helper));
         handlebars.register_helper("config_dir", Box::new(config_dir_helper));
-        
+
         Ok(Self {
             cache_dir,
             templates_dir,
@@ -157,20 +157,17 @@ impl TemplateManager {
             return Ok(CacheMetadata::default());
         }
 
-        let content = std::fs::read_to_string(&path)
-            .context("Failed to read cache metadata")?;
-        
-        serde_json::from_str(&content)
-            .context("Failed to parse cache metadata")
+        let content = std::fs::read_to_string(&path).context("Failed to read cache metadata")?;
+
+        serde_json::from_str(&content).context("Failed to parse cache metadata")
     }
 
     /// Save cache metadata
     fn save_cache_metadata(&self, metadata: &CacheMetadata) -> Result<()> {
-        let content = serde_json::to_string_pretty(metadata)
-            .context("Failed to serialize cache metadata")?;
-        
-        std::fs::write(self.cache_metadata_path(), content)
-            .context("Failed to save cache metadata")
+        let content =
+            serde_json::to_string_pretty(metadata).context("Failed to serialize cache metadata")?;
+
+        std::fs::write(self.cache_metadata_path(), content).context("Failed to save cache metadata")
     }
 
     /// Check if cache is expired
@@ -186,22 +183,20 @@ impl TemplateManager {
             return Ok(None);
         }
 
-        let content = std::fs::read_to_string(&path)
-            .context("Failed to read cached catalog")?;
-        
-        let catalog: TemplateCatalog = serde_json::from_str(&content)
-            .context("Failed to parse cached catalog")?;
-        
+        let content = std::fs::read_to_string(&path).context("Failed to read cached catalog")?;
+
+        let catalog: TemplateCatalog =
+            serde_json::from_str(&content).context("Failed to parse cached catalog")?;
+
         Ok(Some(catalog))
     }
 
     /// Save template catalog to cache
     pub fn save_catalog_cache(&self, catalog: &TemplateCatalog) -> Result<()> {
-        let content = serde_json::to_string_pretty(catalog)
-            .context("Failed to serialize catalog")?;
-        
-        std::fs::write(self.catalog_cache_path(), content)
-            .context("Failed to save catalog cache")
+        let content =
+            serde_json::to_string_pretty(catalog).context("Failed to serialize catalog")?;
+
+        std::fs::write(self.catalog_cache_path(), content).context("Failed to save catalog cache")
     }
 
     /// Load template from cache
@@ -213,18 +208,18 @@ impl TemplateManager {
 
         let content = std::fs::read_to_string(&path)
             .with_context(|| format!("Failed to read cached template: {}", name))?;
-        
+
         let template: Template = serde_json::from_str(&content)
             .with_context(|| format!("Failed to parse cached template: {}", name))?;
-        
+
         Ok(Some(template))
     }
 
     /// Save template to cache
     pub fn save_template_cache(&self, template: &Template) -> Result<()> {
-        let content = serde_json::to_string_pretty(template)
-            .context("Failed to serialize template")?;
-        
+        let content =
+            serde_json::to_string_pretty(template).context("Failed to serialize template")?;
+
         std::fs::write(self.template_cache_path(&template.name), content)
             .with_context(|| format!("Failed to save template cache: {}", template.name))
     }
@@ -240,10 +235,10 @@ impl TemplateManager {
 
         // Fetch from GitHub
         let template = self.github_client.fetch_template(name).await?;
-        
+
         // Cache the template
         self.save_template_cache(&template)?;
-        
+
         Ok(template)
     }
 
@@ -261,18 +256,22 @@ impl TemplateManager {
                 return Ok(catalog);
             }
         }
-        
+
         // Fetch from GitHub
         let catalog = self.github_client.fetch_template_catalog().await?;
-        
+
         // Cache it
         self.save_catalog_cache(&catalog)?;
-        
+
         Ok(catalog)
     }
 
     /// Apply template variables to generate MCP server configuration
-    pub fn apply_template(&self, template: &Template, variables: &HashMap<String, serde_json::Value>) -> Result<crate::config::McpServer> {
+    pub fn apply_template(
+        &self,
+        template: &Template,
+        variables: &HashMap<String, serde_json::Value>,
+    ) -> Result<crate::config::McpServer> {
         // Validate variables first
         self.validate_variables(template, variables)?;
 
@@ -283,13 +282,22 @@ impl TemplateManager {
         }
 
         // Render command
-        let command = self.handlebars.render_template(&template.config.command, &context)
-            .with_context(|| format!("Failed to render command template: {}", template.config.command))?;
+        let command = self
+            .handlebars
+            .render_template(&template.config.command, &context)
+            .with_context(|| {
+                format!(
+                    "Failed to render command template: {}",
+                    template.config.command
+                )
+            })?;
 
         // Render arguments
         let mut rendered_args = Vec::new();
         for arg in &template.config.args {
-            let rendered_arg = self.handlebars.render_template(arg, &context)
+            let rendered_arg = self
+                .handlebars
+                .render_template(arg, &context)
                 .with_context(|| format!("Failed to render argument template: {}", arg))?;
             rendered_args.push(rendered_arg);
         }
@@ -298,17 +306,29 @@ impl TemplateManager {
         let rendered_env = if let Some(env) = &template.config.env {
             let mut rendered_env_map = HashMap::new();
             for (key, value) in env {
-                let rendered_key = self.handlebars.render_template(key, &context)
-                    .with_context(|| format!("Failed to render environment key template: {}", key))?;
-                let rendered_value = self.handlebars.render_template(value, &context)
-                    .with_context(|| format!("Failed to render environment value template: {}", value))?;
-                
+                let rendered_key = self
+                    .handlebars
+                    .render_template(key, &context)
+                    .with_context(|| {
+                        format!("Failed to render environment key template: {}", key)
+                    })?;
+                let rendered_value = self
+                    .handlebars
+                    .render_template(value, &context)
+                    .with_context(|| {
+                        format!("Failed to render environment value template: {}", value)
+                    })?;
+
                 // Only add non-empty keys and values
                 if !rendered_key.trim().is_empty() && !rendered_value.trim().is_empty() {
                     rendered_env_map.insert(rendered_key, rendered_value);
                 }
             }
-            if rendered_env_map.is_empty() { None } else { Some(rendered_env_map) }
+            if rendered_env_map.is_empty() {
+                None
+            } else {
+                Some(rendered_env_map)
+            }
         } else {
             None
         };
@@ -322,19 +342,23 @@ impl TemplateManager {
     }
 
     /// Validate template variables
-    pub fn validate_variables(&self, template: &Template, variables: &HashMap<String, serde_json::Value>) -> Result<()> {
+    pub fn validate_variables(
+        &self,
+        template: &Template,
+        variables: &HashMap<String, serde_json::Value>,
+    ) -> Result<()> {
         // Check required variables
         for (var_name, var_def) in &template.variables {
             if var_def.required {
                 if !variables.contains_key(var_name) {
                     anyhow::bail!("Required variable '{}' is missing", var_name);
                 }
-                
+
                 let value = &variables[var_name];
                 if value.is_null() {
                     anyhow::bail!("Required variable '{}' cannot be null", var_name);
                 }
-                
+
                 // For string variables, check if empty
                 if var_def.var_type == VariableType::String {
                     if let Some(str_val) = value.as_str() {
@@ -345,32 +369,31 @@ impl TemplateManager {
                 }
             }
         }
-        
+
         Ok(())
     }
 
     /// Refresh template cache
     pub async fn refresh_cache(&self) -> Result<()> {
         let github_client = crate::github::GitHubClient::new();
-        
+
         // Fetch fresh catalog
         let catalog = github_client.fetch_template_catalog().await?;
         self.save_catalog_cache(&catalog)?;
-        
+
         // Update cache metadata
         let mut metadata = CacheMetadata::default();
         metadata.last_refresh = chrono::Utc::now();
         metadata.expires_at = chrono::Utc::now() + chrono::Duration::days(30);
         self.save_cache_metadata(&metadata)?;
-        
+
         Ok(())
     }
 
     /// Clear template cache
     pub fn clear_cache(&self) -> Result<()> {
         if self.cache_dir.exists() {
-            std::fs::remove_dir_all(&self.cache_dir)
-                .context("Failed to clear cache directory")?;
+            std::fs::remove_dir_all(&self.cache_dir).context("Failed to clear cache directory")?;
             std::fs::create_dir_all(&self.cache_dir)
                 .context("Failed to recreate cache directory")?;
             std::fs::create_dir_all(&self.templates_dir)
@@ -485,7 +508,7 @@ mod tests {
             }
         }
         "#;
-        
+
         let template: Template = serde_json::from_str(template_json).unwrap();
         assert_eq!(template.name, "test-template");
         assert_eq!(template.variables.len(), 1);
@@ -502,14 +525,17 @@ mod tests {
             platforms: vec!["macos".to_string()],
             variables: {
                 let mut vars = HashMap::new();
-                vars.insert("required_string".to_string(), TemplateVariable {
-                    var_type: VariableType::String,
-                    description: "Required string".to_string(),
-                    default: None,
-                    required: true,
-                    validation: None,
-                    options: None,
-                });
+                vars.insert(
+                    "required_string".to_string(),
+                    TemplateVariable {
+                        var_type: VariableType::String,
+                        description: "Required string".to_string(),
+                        default: None,
+                        required: true,
+                        validation: None,
+                        options: None,
+                    },
+                );
                 vars
             },
             config: TemplateConfig {
@@ -520,16 +546,19 @@ mod tests {
             requirements: None,
             setup_instructions: None,
         };
-        
+
         let manager = TemplateManager::new().unwrap();
-        
+
         // Test missing required variable
         let empty_vars = HashMap::new();
         assert!(manager.validate_variables(&template, &empty_vars).is_err());
-        
+
         // Test valid variable
         let mut valid_vars = HashMap::new();
-        valid_vars.insert("required_string".to_string(), serde_json::Value::String("test".to_string()));
+        valid_vars.insert(
+            "required_string".to_string(),
+            serde_json::Value::String("test".to_string()),
+        );
         assert!(manager.validate_variables(&template, &valid_vars).is_ok());
     }
 
@@ -537,8 +566,8 @@ mod tests {
     fn test_platform_detection() {
         let os = get_os_name();
         assert!(!os.is_empty());
-        
+
         let arch = get_arch_name();
         assert!(!arch.is_empty());
     }
-} 
+}

@@ -1,17 +1,16 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 
+mod backup;
+mod bulk;
 mod cli;
 mod config;
 mod github;
+mod profiles;
+mod search;
 mod templates;
 mod utils;
 mod validation;
-mod backup;
-mod bulk;
-mod profiles;
-mod search;
-
 
 // Re-export enum types from their respective modules
 pub use backup::BackupCommands;
@@ -25,11 +24,11 @@ pub use profiles::ProfileCommands;
 struct Cli {
     #[command(subcommand)]
     command: Commands,
-    
+
     /// Use specific profile
     #[arg(long, global = true)]
     profile: Option<String>,
-    
+
     /// Enable verbose output
     #[arg(short, long, global = true)]
     verbose: bool,
@@ -292,21 +291,27 @@ pub enum ConfigCommands {
     Path,
 }
 
-
-
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
-    
+
     // Set up logging if verbose
     if cli.verbose {
         env_logger::init();
     }
 
     match cli.command {
-        Commands::List { 
-            filter, tag, platform, author, requires, sort, desc, 
-            format, show_requirements, json 
+        Commands::List {
+            filter,
+            tag,
+            platform,
+            author,
+            requires,
+            sort,
+            desc,
+            format,
+            show_requirements,
+            json,
         } => {
             let criteria = search::SearchCriteria {
                 text: filter,
@@ -324,50 +329,54 @@ async fn main() -> Result<()> {
             };
             cli::handle_enhanced_list(criteria, options, cli.profile).await
         }
-        Commands::Add { name, template, vars, dry_run, preview } => {
-            cli::handle_enhanced_add(name, template, vars, dry_run, preview, cli.profile).await
-        }
-        Commands::Remove { name, all, pattern, force, dry_run } => {
-            cli::handle_enhanced_remove(name, all, pattern, force, dry_run, cli.profile).await
-        }
+        Commands::Add {
+            name,
+            template,
+            vars,
+            dry_run,
+            preview,
+        } => cli::handle_enhanced_add(name, template, vars, dry_run, preview, cli.profile).await,
+        Commands::Remove {
+            name,
+            all,
+            pattern,
+            force,
+            dry_run,
+        } => cli::handle_enhanced_remove(name, all, pattern, force, dry_run, cli.profile).await,
         Commands::Edit { name, dry_run } => {
             cli::handle_enhanced_edit(name, dry_run, cli.profile).await
         }
-        Commands::Update { name, args, tag, set, dry_run, preview } => {
-            cli::handle_enhanced_update(name, args, tag, set, dry_run, preview, cli.profile).await
-        }
-        Commands::Template { action } => {
-            cli::handle_template_command(action).await
-        }
-        Commands::Config { action } => {
-            cli::handle_config_command(action).await
-        }
-        Commands::Backup { action } => {
-            backup::handle_backup_command(action, cli.profile).await
-        }
-        Commands::Bulk { action } => {
-            bulk::handle_bulk_command(action, cli.profile).await
-        }
-        Commands::Profile { action } => {
-            profiles::handle_profile_command(action).await
-        }
-        Commands::Validate { deep, requirements, server } => {
-            validation::handle_validate(deep, requirements, server, cli.profile).await
-        }
-        Commands::Health => {
-            validation::handle_health_check(cli.profile).await
-        }
-        Commands::ValidateAll => {
-            validation::handle_validate_all(cli.profile).await
-        }
-        Commands::Doctor => {
-            validation::handle_doctor(cli.profile).await
-        }
-        Commands::Import { file, merge, replace, dry_run } => {
-            cli::handle_import(file, merge, replace, dry_run, cli.profile).await
-        }
-        Commands::Export { format, template, output } => {
-            cli::handle_export(format, template, output, cli.profile).await
-        }
+        Commands::Update {
+            name,
+            args,
+            tag,
+            set,
+            dry_run,
+            preview,
+        } => cli::handle_enhanced_update(name, args, tag, set, dry_run, preview, cli.profile).await,
+        Commands::Template { action } => cli::handle_template_command(action).await,
+        Commands::Config { action } => cli::handle_config_command(action).await,
+        Commands::Backup { action } => backup::handle_backup_command(action, cli.profile).await,
+        Commands::Bulk { action } => bulk::handle_bulk_command(action, cli.profile).await,
+        Commands::Profile { action } => profiles::handle_profile_command(action).await,
+        Commands::Validate {
+            deep,
+            requirements,
+            server,
+        } => validation::handle_validate(deep, requirements, server, cli.profile).await,
+        Commands::Health => validation::handle_health_check(cli.profile).await,
+        Commands::ValidateAll => validation::handle_validate_all(cli.profile).await,
+        Commands::Doctor => validation::handle_doctor(cli.profile).await,
+        Commands::Import {
+            file,
+            merge,
+            replace,
+            dry_run,
+        } => cli::handle_import(file, merge, replace, dry_run, cli.profile).await,
+        Commands::Export {
+            format,
+            template,
+            output,
+        } => cli::handle_export(format, template, output, cli.profile).await,
     }
 }

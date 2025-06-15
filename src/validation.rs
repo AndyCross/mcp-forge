@@ -1,10 +1,10 @@
+use crate::config::{Config, McpServer};
+use crate::utils;
 use anyhow::{anyhow, Result};
 use colored::Colorize;
 use serde::Serialize;
 use std::path::Path;
 use std::process::Command;
-use crate::config::{Config, McpServer};
-use crate::utils;
 
 /// Validation status levels
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -76,7 +76,7 @@ pub async fn handle_validate(
     profile: Option<String>,
 ) -> Result<()> {
     let config = Config::load(profile.as_deref()).await?;
-    
+
     println!("{}", "Configuration Validation".cyan().bold());
     println!("{}", "────────────────────────".cyan());
 
@@ -95,16 +95,23 @@ pub async fn handle_validate(
     };
 
     display_validation_results(&results);
-    
-    let has_errors = results.iter().any(|r| matches!(r.status, ValidationStatus::Error));
-    let has_warnings = results.iter().any(|r| matches!(r.status, ValidationStatus::Warning));
-    
+
+    let has_errors = results
+        .iter()
+        .any(|r| matches!(r.status, ValidationStatus::Error));
+    let has_warnings = results
+        .iter()
+        .any(|r| matches!(r.status, ValidationStatus::Warning));
+
     println!();
     if has_errors {
         println!("{}", "❌ Validation completed with errors".red().bold());
         std::process::exit(1);
     } else if has_warnings {
-        println!("{}", "⚠️  Validation completed with warnings".yellow().bold());
+        println!(
+            "{}",
+            "⚠️  Validation completed with warnings".yellow().bold()
+        );
     } else {
         println!("{}", "✅ All validations passed".green().bold());
     }
@@ -115,7 +122,7 @@ pub async fn handle_validate(
 /// Handle health check command
 pub async fn handle_health_check(profile: Option<String>) -> Result<()> {
     let config = Config::load(profile.as_deref()).await?;
-    
+
     println!("{}", "System Health Check".cyan().bold());
     println!("{}", "───────────────────".cyan());
 
@@ -125,7 +132,7 @@ pub async fn handle_health_check(profile: Option<String>) -> Result<()> {
     for (name, server) in &config.mcp_servers {
         print!("Checking {} ... ", name);
         let result = validate_server(name, server, true, true).await;
-        
+
         match result.status {
             ValidationStatus::Valid => {
                 println!("{}", "✓ Healthy".green());
@@ -144,17 +151,23 @@ pub async fn handle_health_check(profile: Option<String>) -> Result<()> {
 
     println!();
     println!("Health Summary:");
-    println!("  Healthy servers: {}/{}", healthy_count, config.mcp_servers.len());
-    
+    println!(
+        "  Healthy servers: {}/{}",
+        healthy_count,
+        config.mcp_servers.len()
+    );
+
     if !health_issues.is_empty() {
         println!("  Issues found: {}", health_issues.len());
         println!();
         println!("Issues requiring attention:");
         for issue in &health_issues {
-            println!("  {} {}: {}", 
-                     issue.severity.symbol().color(issue.severity.color()),
-                     issue.issue_type.bold(),
-                     issue.message);
+            println!(
+                "  {} {}: {}",
+                issue.severity.symbol().color(issue.severity.color()),
+                issue.issue_type.bold(),
+                issue.message
+            );
             if let Some(suggestion) = &issue.fix_suggestion {
                 println!("    💡 {}", suggestion.italic());
             }
@@ -171,11 +184,11 @@ pub async fn handle_validate_all(profile: Option<String>) -> Result<()> {
 
     // First run health check
     handle_health_check(profile.clone()).await?;
-    
+
     println!();
     println!("{}", "Configuration Details".cyan().bold());
     println!("{}", "────────────────────".cyan());
-    
+
     // Then run detailed validation
     handle_validate(true, true, None, profile).await?;
 
@@ -210,29 +223,41 @@ async fn validate_server(
 
     // Basic validation - command exists and is executable
     validate_command_exists(server, &mut result);
-    
+
     // Validate arguments
     validate_arguments(server, &mut result);
-    
+
     // Validate environment variables
     validate_environment(server, &mut result);
-    
+
     // Check requirements if requested
     if check_requirements {
         validate_requirements(server, &mut result).await;
     }
-    
+
     // Deep validation if requested
     if deep {
         perform_deep_validation(server, &mut result).await;
     }
 
     // Determine overall status
-    if result.issues.iter().any(|i| matches!(i.severity, ValidationStatus::Error)) {
+    if result
+        .issues
+        .iter()
+        .any(|i| matches!(i.severity, ValidationStatus::Error))
+    {
         result.status = ValidationStatus::Error;
-    } else if result.issues.iter().any(|i| matches!(i.severity, ValidationStatus::RequirementsMissing)) {
+    } else if result
+        .issues
+        .iter()
+        .any(|i| matches!(i.severity, ValidationStatus::RequirementsMissing))
+    {
         result.status = ValidationStatus::RequirementsMissing;
-    } else if result.issues.iter().any(|i| matches!(i.severity, ValidationStatus::Warning)) {
+    } else if result
+        .issues
+        .iter()
+        .any(|i| matches!(i.severity, ValidationStatus::Warning))
+    {
         result.status = ValidationStatus::Warning;
     }
 
@@ -242,7 +267,7 @@ async fn validate_server(
 /// Check if the command exists and is executable
 fn validate_command_exists(server: &McpServer, result: &mut ValidationResult) {
     let command = &server.command;
-    
+
     // Check if it's a full path
     if Path::new(command).is_absolute() {
         if !Path::new(command).exists() {
@@ -254,7 +279,7 @@ fn validate_command_exists(server: &McpServer, result: &mut ValidationResult) {
             });
             return;
         }
-        
+
         if !is_executable(Path::new(command)) {
             result.issues.push(ValidationIssue {
                 issue_type: "Not Executable".to_string(),
@@ -284,20 +309,27 @@ fn validate_arguments(server: &McpServer, result: &mut ValidationResult) {
         if arg.contains(' ') && !arg.starts_with('"') && !arg.starts_with('\'') {
             result.issues.push(ValidationIssue {
                 issue_type: "Unquoted Argument".to_string(),
-                message: format!("Argument {} '{}' contains spaces but isn't quoted", i + 1, arg),
+                message: format!(
+                    "Argument {} '{}' contains spaces but isn't quoted",
+                    i + 1,
+                    arg
+                ),
                 severity: ValidationStatus::Warning,
                 fix_suggestion: Some("Consider quoting arguments with spaces".to_string()),
             });
         }
-        
+
         // Check for file/directory arguments that don't exist
-        if (arg.starts_with('/') || arg.starts_with("./") || arg.contains(":\\")) 
-           && !Path::new(arg).exists() {
+        if (arg.starts_with('/') || arg.starts_with("./") || arg.contains(":\\"))
+            && !Path::new(arg).exists()
+        {
             result.issues.push(ValidationIssue {
                 issue_type: "Path Not Found".to_string(),
                 message: format!("Path argument '{}' does not exist", arg),
                 severity: ValidationStatus::Warning,
-                fix_suggestion: Some("Verify the path exists or will be created at runtime".to_string()),
+                fix_suggestion: Some(
+                    "Verify the path exists or will be created at runtime".to_string(),
+                ),
             });
         }
     }
@@ -313,19 +345,29 @@ fn validate_environment(server: &McpServer, result: &mut ValidationResult) {
                     issue_type: "Empty Environment Variable".to_string(),
                     message: format!("Environment variable '{}' is empty", key),
                     severity: ValidationStatus::Warning,
-                    fix_suggestion: Some("Consider removing unused environment variables".to_string()),
+                    fix_suggestion: Some(
+                        "Consider removing unused environment variables".to_string(),
+                    ),
                 });
             }
-            
+
             // Check for potential file path environment variables
-            if (key.to_uppercase().contains("PATH") || key.to_uppercase().contains("DIR") 
-                || key.to_uppercase().contains("FILE")) && !value.is_empty() {
+            if (key.to_uppercase().contains("PATH")
+                || key.to_uppercase().contains("DIR")
+                || key.to_uppercase().contains("FILE"))
+                && !value.is_empty()
+            {
                 if !Path::new(value).exists() {
                     result.issues.push(ValidationIssue {
                         issue_type: "Environment Path Not Found".to_string(),
-                        message: format!("Environment variable '{}' points to non-existent path '{}'", key, value),
+                        message: format!(
+                            "Environment variable '{}' points to non-existent path '{}'",
+                            key, value
+                        ),
                         severity: ValidationStatus::Warning,
-                        fix_suggestion: Some("Verify the path exists or will be created at runtime".to_string()),
+                        fix_suggestion: Some(
+                            "Verify the path exists or will be created at runtime".to_string(),
+                        ),
                     });
                 }
             }
@@ -336,11 +378,13 @@ fn validate_environment(server: &McpServer, result: &mut ValidationResult) {
 /// Check system requirements for the server
 async fn validate_requirements(server: &McpServer, result: &mut ValidationResult) {
     let command = &server.command;
-    
+
     match command.as_str() {
         "node" | "npx" => {
             if let Some(version) = get_node_version() {
-                result.suggestions.push(format!("Node.js version: {}", version));
+                result
+                    .suggestions
+                    .push(format!("Node.js version: {}", version));
             } else {
                 result.issues.push(ValidationIssue {
                     issue_type: "Missing Requirement".to_string(),
@@ -352,7 +396,9 @@ async fn validate_requirements(server: &McpServer, result: &mut ValidationResult
         }
         "python" | "python3" => {
             if let Some(version) = get_python_version() {
-                result.suggestions.push(format!("Python version: {}", version));
+                result
+                    .suggestions
+                    .push(format!("Python version: {}", version));
             } else {
                 result.issues.push(ValidationIssue {
                     issue_type: "Missing Requirement".to_string(),
@@ -379,7 +425,7 @@ async fn validate_requirements(server: &McpServer, result: &mut ValidationResult
 /// Perform deep validation (not network-level as per requirements)
 async fn perform_deep_validation(server: &McpServer, result: &mut ValidationResult) {
     // Check for common configuration issues
-    
+
     // Validate port numbers in arguments
     for arg in &server.args {
         if let Ok(port) = arg.parse::<u16>() {
@@ -393,14 +439,19 @@ async fn perform_deep_validation(server: &McpServer, result: &mut ValidationResu
             }
         }
     }
-    
+
     // Check for potential resource issues
     if server.args.len() > 20 {
         result.issues.push(ValidationIssue {
             issue_type: "Many Arguments".to_string(),
-            message: format!("Server has {} arguments, which might indicate complexity", server.args.len()),
+            message: format!(
+                "Server has {} arguments, which might indicate complexity",
+                server.args.len()
+            ),
             severity: ValidationStatus::Warning,
-            fix_suggestion: Some("Consider using configuration files instead of many arguments".to_string()),
+            fix_suggestion: Some(
+                "Consider using configuration files instead of many arguments".to_string(),
+            ),
         });
     }
 }
@@ -425,7 +476,7 @@ async fn run_system_diagnostic(profile: Option<&str>) -> Result<SystemDiagnostic
             diagnostic.config_file_path = path.display().to_string();
             diagnostic.config_file_exists = path.exists();
             diagnostic.config_file_writable = is_writable(&path);
-            
+
             if !diagnostic.config_file_exists {
                 diagnostic.issues.push(ValidationIssue {
                     issue_type: "Configuration".to_string(),
@@ -478,16 +529,20 @@ fn display_validation_results(results: &[ValidationResult]) {
     for result in results {
         println!();
         let status_symbol = result.status.symbol().color(result.status.color());
-        println!("{} {} ({})", 
-                 status_symbol, 
-                 result.server_name.bold(),
-                 format!("{:?}", result.status).color(result.status.color()));
+        println!(
+            "{} {} ({})",
+            status_symbol,
+            result.server_name.bold(),
+            format!("{:?}", result.status).color(result.status.color())
+        );
 
         for issue in &result.issues {
-            println!("  {} {}: {}", 
-                     issue.severity.symbol().color(issue.severity.color()),
-                     issue.issue_type.bold(),
-                     issue.message);
+            println!(
+                "  {} {}: {}",
+                issue.severity.symbol().color(issue.severity.color()),
+                issue.issue_type.bold(),
+                issue.message
+            );
             if let Some(suggestion) = &issue.fix_suggestion {
                 println!("    💡 {}", suggestion.italic());
             }
@@ -504,13 +559,13 @@ fn display_validation_results(results: &[ValidationResult]) {
 /// Display system diagnostic
 fn display_diagnostic(diagnostic: &SystemDiagnostic) {
     println!("Platform: {}", diagnostic.platform.bold());
-    
+
     if let Some(node) = &diagnostic.node_version {
         println!("Node.js: {}", node.green());
     } else {
         println!("Node.js: {}", "Not installed".red());
     }
-    
+
     if let Some(python) = &diagnostic.python_version {
         println!("Python: {}", python.green());
     } else {
@@ -520,22 +575,44 @@ fn display_diagnostic(diagnostic: &SystemDiagnostic) {
     println!();
     println!("Configuration:");
     println!("  File: {}", diagnostic.config_file_path);
-    println!("  Exists: {}", if diagnostic.config_file_exists { "✓".green() } else { "✗".red() });
-    println!("  Writable: {}", if diagnostic.config_file_writable { "✓".green() } else { "✗".red() });
+    println!(
+        "  Exists: {}",
+        if diagnostic.config_file_exists {
+            "✓".green()
+        } else {
+            "✗".red()
+        }
+    );
+    println!(
+        "  Writable: {}",
+        if diagnostic.config_file_writable {
+            "✓".green()
+        } else {
+            "✗".red()
+        }
+    );
     println!("  Servers: {}", diagnostic.total_servers);
 
     println!();
-    println!("Backup Directory: {}", 
-             if diagnostic.backup_directory_exists { "✓".green() } else { "✗".yellow() });
+    println!(
+        "Backup Directory: {}",
+        if diagnostic.backup_directory_exists {
+            "✓".green()
+        } else {
+            "✗".yellow()
+        }
+    );
 
     if !diagnostic.issues.is_empty() {
         println!();
         println!("System Issues:");
         for issue in &diagnostic.issues {
-            println!("  {} {}: {}", 
-                     issue.severity.symbol().color(issue.severity.color()),
-                     issue.issue_type.bold(),
-                     issue.message);
+            println!(
+                "  {} {}: {}",
+                issue.severity.symbol().color(issue.severity.color()),
+                issue.issue_type.bold(),
+                issue.message
+            );
             if let Some(suggestion) = &issue.fix_suggestion {
                 println!("    💡 {}", suggestion.italic());
             }
@@ -615,11 +692,9 @@ fn is_writable(path: &Path) -> bool {
             .is_ok()
     } else {
         // Check if parent directory is writable
-        path.parent()
-            .map_or(false, |parent| {
-                std::fs::metadata(parent)
-                    .map_or(false, |metadata| !metadata.permissions().readonly())
-            })
+        path.parent().map_or(false, |parent| {
+            std::fs::metadata(parent).map_or(false, |metadata| !metadata.permissions().readonly())
+        })
     }
 }
 
@@ -631,9 +706,9 @@ pub async fn validate_config(
     profile: Option<String>,
 ) -> Result<()> {
     let config = crate::config::Config::load(profile.as_deref()).await?;
-    
+
     println!("🔍 Validating configuration...");
-    
+
     if let Some(server_name) = server {
         // Validate specific server
         if let Some(server) = config.get_server(&server_name) {
@@ -651,7 +726,10 @@ pub async fn validate_config(
                     for issue in &result.issues {
                         println!("    {}", issue.message);
                     }
-                    return Err(anyhow::anyhow!("Validation failed for server '{}'", server_name));
+                    return Err(anyhow::anyhow!(
+                        "Validation failed for server '{}'",
+                        server_name
+                    ));
                 }
             }
         } else {
@@ -664,7 +742,7 @@ pub async fn validate_config(
             println!("⚠️  No servers configured to validate");
             return Ok(());
         }
-        
+
         let mut has_errors = false;
         for (name, server) in servers {
             let result = validate_server(&name, &server, deep, requirements).await;
@@ -685,12 +763,12 @@ pub async fn validate_config(
                 }
             }
         }
-        
+
         if has_errors {
             return Err(anyhow::anyhow!("Validation failed for one or more servers"));
         }
     }
-    
+
     println!("✅ Configuration validation completed");
     Ok(())
 }
@@ -747,6 +825,9 @@ mod tests {
 
         validate_arguments(&server, &mut result);
         assert!(!result.issues.is_empty());
-        assert!(matches!(result.issues[0].severity, ValidationStatus::Warning));
+        assert!(matches!(
+            result.issues[0].severity,
+            ValidationStatus::Warning
+        ));
     }
-} 
+}

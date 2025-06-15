@@ -6,16 +6,16 @@ use std::path::PathBuf;
 /// Get the Claude Desktop configuration directory
 pub fn get_config_dir() -> Result<PathBuf> {
     let home = dirs::home_dir().context("Could not find home directory")?;
-    
+
     #[cfg(target_os = "macos")]
     let config_dir = home.join("Library/Application Support/Claude");
-    
+
     #[cfg(target_os = "windows")]
     let config_dir = home.join("AppData/Roaming/Claude");
-    
+
     #[cfg(target_os = "linux")]
     let config_dir = home.join(".config/claude");
-    
+
     Ok(config_dir)
 }
 
@@ -49,4 +49,4 @@ mod tests {
         assert!(get_backup_dir().is_ok());
         assert!(get_profile_config_path("test").is_ok());
     }
-} 
+}

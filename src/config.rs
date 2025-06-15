@@ -1,9 +1,9 @@
+use crate::utils;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tokio::fs;
-use crate::utils;
 
 /// Represents an MCP server configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,7 +47,8 @@ impl Config {
             return Ok(Self::default());
         }
 
-        let content = fs::read_to_string(&config_path).await
+        let content = fs::read_to_string(&config_path)
+            .await
             .with_context(|| format!("Failed to read config file: {}", config_path.display()))?;
 
         let config: Self = serde_json::from_str(&content)
@@ -66,14 +67,16 @@ impl Config {
 
         // Ensure parent directory exists
         if let Some(parent) = config_path.parent() {
-            fs::create_dir_all(parent).await
-                .with_context(|| format!("Failed to create config directory: {}", parent.display()))?;
+            fs::create_dir_all(parent).await.with_context(|| {
+                format!("Failed to create config directory: {}", parent.display())
+            })?;
         }
 
-        let content = serde_json::to_string_pretty(self)
-            .context("Failed to serialize configuration")?;
+        let content =
+            serde_json::to_string_pretty(self).context("Failed to serialize configuration")?;
 
-        fs::write(&config_path, content).await
+        fs::write(&config_path, content)
+            .await
             .with_context(|| format!("Failed to write config file: {}", config_path.display()))?;
 
         Ok(())
@@ -100,7 +103,10 @@ impl Config {
 
     /// List all MCP servers
     pub fn list_servers(&self) -> Vec<(String, &McpServer)> {
-        self.mcp_servers.iter().map(|(k, v)| (k.clone(), v)).collect()
+        self.mcp_servers
+            .iter()
+            .map(|(k, v)| (k.clone(), v))
+            .collect()
     }
 }
 
@@ -153,12 +159,12 @@ mod tests {
     #[test]
     fn test_config_operations() {
         let config = Config::default();
-        
+
         // Test that we can create and serialize configs
         assert_eq!(config.mcp_servers.len(), 0);
-        
+
         let json = serde_json::to_string_pretty(&config).unwrap();
         let parsed: Config = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.mcp_servers.len(), 0);
     }
-} 
+}

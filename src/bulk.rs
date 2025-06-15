@@ -1,12 +1,12 @@
+use crate::config::Config;
+use crate::templates::TemplateManager;
 use anyhow::{anyhow, Result};
-use serde::{Deserialize, Serialize};
-use crate::config::{Config};
-use crate::templates::{TemplateManager};
-use std::collections::HashMap;
+use clap::Subcommand;
 use colored::Colorize;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-use clap::Subcommand;
 
 /// Batch server configuration
 #[derive(Debug, Serialize, Deserialize)]
@@ -34,26 +34,25 @@ pub struct BulkOperationResult {
 /// Handle bulk command routing
 pub async fn handle_bulk_command(action: BulkCommands, profile: Option<String>) -> Result<()> {
     match action {
-        BulkCommands::Add { file, dry_run } => {
-            handle_bulk_add(file, dry_run, profile).await
-        }
-        BulkCommands::Update { pattern, tag, set, dry_run } => {
-            handle_bulk_update(pattern, tag, set, dry_run, profile).await
-        }
-        BulkCommands::Remove { pattern, force, dry_run } => {
-            handle_bulk_remove(pattern, force, dry_run, profile).await
-        }
+        BulkCommands::Add { file, dry_run } => handle_bulk_add(file, dry_run, profile).await,
+        BulkCommands::Update {
+            pattern,
+            tag,
+            set,
+            dry_run,
+        } => handle_bulk_update(pattern, tag, set, dry_run, profile).await,
+        BulkCommands::Remove {
+            pattern,
+            force,
+            dry_run,
+        } => handle_bulk_remove(pattern, force, dry_run, profile).await,
     }
 }
 
 /// Handle bulk add from file
-async fn handle_bulk_add(
-    file_path: String,
-    dry_run: bool,
-    profile: Option<String>,
-) -> Result<()> {
+async fn handle_bulk_add(file_path: String, dry_run: bool, profile: Option<String>) -> Result<()> {
     let batch_config = load_batch_config(&file_path).await?;
-    
+
     if dry_run {
         println!("{}", "Bulk Add Preview (Dry Run)".cyan().bold());
         println!("{}", "─────────────────────────".cyan());
@@ -72,7 +71,7 @@ async fn handle_bulk_add(
         } else {
             add_server_from_config(server_config, &mut config, &template_manager).await?
         };
-        
+
         results.push(result);
     }
 
@@ -83,7 +82,12 @@ async fn handle_bulk_add(
         if success_count > 0 {
             config.save(profile.as_deref()).await?;
             println!();
-            println!("{}", format!("✅ Successfully added {} server(s)", success_count).green().bold());
+            println!(
+                "{}",
+                format!("✅ Successfully added {} server(s)", success_count)
+                    .green()
+                    .bold()
+            );
         }
     }
 
@@ -99,7 +103,7 @@ async fn handle_bulk_update(
     profile: Option<String>,
 ) -> Result<()> {
     let mut config = Config::load(profile.as_deref()).await?;
-    
+
     if dry_run {
         println!("{}", "Bulk Update Preview (Dry Run)".cyan().bold());
         println!("{}", "───────────────────────────".cyan());
@@ -110,24 +114,24 @@ async fn handle_bulk_update(
 
     // Parse environment variables to set
     let env_updates = parse_env_vars(&set_vars)?;
-    
+
     // Find matching servers
     let matching_servers = find_matching_servers(&config, pattern.as_deref(), tag.as_deref())?;
-    
+
     if matching_servers.is_empty() {
         println!("{}", "No servers match the specified criteria.".yellow());
         return Ok(());
     }
 
     let mut results = Vec::new();
-    
+
     for server_name in &matching_servers {
         let result = if dry_run {
             preview_update_server(server_name, &env_updates, &config)
         } else {
             update_server_env(server_name, &env_updates, &mut config)
         };
-        
+
         results.push(result);
     }
 
@@ -138,7 +142,12 @@ async fn handle_bulk_update(
         if success_count > 0 {
             config.save(profile.as_deref()).await?;
             println!();
-            println!("{}", format!("✅ Successfully updated {} server(s)", success_count).green().bold());
+            println!(
+                "{}",
+                format!("✅ Successfully updated {} server(s)", success_count)
+                    .green()
+                    .bold()
+            );
         }
     }
 
@@ -153,12 +162,15 @@ async fn handle_bulk_remove(
     profile: Option<String>,
 ) -> Result<()> {
     let mut config = Config::load(profile.as_deref()).await?;
-    
+
     // Find matching servers
     let matching_servers = find_matching_servers(&config, Some(&pattern), None)?;
-    
+
     if matching_servers.is_empty() {
-        println!("{}", format!("No servers match pattern '{}'", pattern).yellow());
+        println!(
+            "{}",
+            format!("No servers match pattern '{}'", pattern).yellow()
+        );
         return Ok(());
     }
 
@@ -202,7 +214,12 @@ async fn handle_bulk_remove(
         if removed_count > 0 {
             config.save(profile.as_deref()).await?;
             println!();
-            println!("{}", format!("✅ Successfully removed {} server(s)", removed_count).green().bold());
+            println!(
+                "{}",
+                format!("✅ Successfully removed {} server(s)", removed_count)
+                    .green()
+                    .bold()
+            );
         }
     } else {
         println!();
@@ -222,13 +239,9 @@ async fn load_batch_config(file_path: &str) -> Result<BatchConfig> {
     let extension = path.extension().and_then(|s| s.to_str()).unwrap_or("");
 
     match extension.to_lowercase().as_str() {
-        "json" => {
-            serde_json::from_str(&content)
-                .map_err(|e| anyhow!("Invalid JSON format: {}", e))
-        }
+        "json" => serde_json::from_str(&content).map_err(|e| anyhow!("Invalid JSON format: {}", e)),
         "yaml" | "yml" => {
-            serde_yaml::from_str(&content)
-                .map_err(|e| anyhow!("Invalid YAML format: {}", e))
+            serde_yaml::from_str(&content).map_err(|e| anyhow!("Invalid YAML format: {}", e))
         }
         _ => {
             // Try JSON first, then YAML
@@ -257,8 +270,10 @@ async fn preview_add_server(
 
     // Check if template exists
     let template_list = template_manager.list_templates().await?;
-    let template_exists = template_list.iter().any(|t| t.name == server_config.template);
-    
+    let template_exists = template_list
+        .iter()
+        .any(|t| t.name == server_config.template);
+
     if !template_exists {
         return Ok(BulkOperationResult {
             server_name: server_config.name.clone(),
@@ -283,20 +298,30 @@ async fn add_server_from_config(
     template_manager: &TemplateManager,
 ) -> Result<BulkOperationResult> {
     // Get template
-    let template = match template_manager.load_template(&server_config.template).await {
+    let template = match template_manager
+        .load_template(&server_config.template)
+        .await
+    {
         Ok(template) => template,
-        Err(e) => return Ok(BulkOperationResult {
-            server_name: server_config.name.clone(),
-            operation: "add".to_string(),
-            success: false,
-            message: format!("Failed to load template '{}': {}", server_config.template, e),
-        }),
+        Err(e) => {
+            return Ok(BulkOperationResult {
+                server_name: server_config.name.clone(),
+                operation: "add".to_string(),
+                success: false,
+                message: format!(
+                    "Failed to load template '{}': {}",
+                    server_config.template, e
+                ),
+            })
+        }
     };
-    
-    let variables: HashMap<String, serde_json::Value> = server_config.vars.iter()
+
+    let variables: HashMap<String, serde_json::Value> = server_config
+        .vars
+        .iter()
         .map(|(k, v)| (k.clone(), serde_json::Value::String(v.clone())))
         .collect();
-    
+
     let server = match template_manager.apply_template(&template, &variables) {
         Ok(server) => server,
         Err(e) => {
@@ -309,7 +334,9 @@ async fn add_server_from_config(
         }
     };
 
-    config.mcp_servers.insert(server_config.name.clone(), server);
+    config
+        .mcp_servers
+        .insert(server_config.name.clone(), server);
     Ok(BulkOperationResult {
         server_name: server_config.name.clone(),
         operation: "add".to_string(),
@@ -325,7 +352,7 @@ pub fn find_matching_servers(
     _tag: Option<&str>, // TODO: Implement tag filtering when metadata is available
 ) -> Result<Vec<String>> {
     let mut matching = Vec::new();
-    
+
     for (name, _server) in &config.mcp_servers {
         if let Some(pattern_str) = pattern {
             // Simple pattern matching - could be enhanced with regex
@@ -337,26 +364,32 @@ pub fn find_matching_servers(
             matching.push(name.clone());
         }
     }
-    
+
     if matching.is_empty() && pattern.is_some() {
-        return Err(anyhow!("No servers found matching pattern: {}", pattern.unwrap()));
+        return Err(anyhow!(
+            "No servers found matching pattern: {}",
+            pattern.unwrap()
+        ));
     }
-    
+
     Ok(matching)
 }
 
 /// Parse environment variable assignments
 pub fn parse_env_vars(set_vars: &[String]) -> Result<HashMap<String, String>> {
     let mut env_updates = HashMap::new();
-    
+
     for var_assignment in set_vars {
         if let Some((key, value)) = var_assignment.split_once('=') {
             env_updates.insert(key.to_string(), value.to_string());
         } else {
-            return Err(anyhow!("Invalid environment variable assignment: '{}'. Use format KEY=VALUE", var_assignment));
+            return Err(anyhow!(
+                "Invalid environment variable assignment: '{}'. Use format KEY=VALUE",
+                var_assignment
+            ));
         }
     }
-    
+
     Ok(env_updates)
 }
 
@@ -375,7 +408,8 @@ fn preview_update_server(
         };
     }
 
-    let changes: Vec<String> = env_updates.iter()
+    let changes: Vec<String> = env_updates
+        .iter()
         .map(|(key, value)| format!("{}={}", key, value))
         .collect();
 
@@ -437,20 +471,35 @@ fn display_bulk_results(results: &[BulkOperationResult], dry_run: bool) {
         };
 
         let operation_text = if dry_run {
-            format!("[{}] {}", result.operation.to_uppercase(), result.server_name)
+            format!(
+                "[{}] {}",
+                result.operation.to_uppercase(),
+                result.server_name
+            )
         } else {
             result.server_name.clone()
         };
 
-        println!("{} {} - {}", status_symbol, operation_text.bold(), result.message);
+        println!(
+            "{} {} - {}",
+            status_symbol,
+            operation_text.bold(),
+            result.message
+        );
     }
 
     println!();
     if dry_run {
         println!("Preview Summary:");
-        println!("  {} operation(s) would succeed", success_count.to_string().green());
+        println!(
+            "  {} operation(s) would succeed",
+            success_count.to_string().green()
+        );
         if error_count > 0 {
-            println!("  {} operation(s) would fail", error_count.to_string().red());
+            println!(
+                "  {} operation(s) would fail",
+                error_count.to_string().red()
+            );
         }
     } else {
         println!("Operation Summary:");
@@ -513,7 +562,7 @@ mod tests {
             "PORT=3000".to_string(),
             "HOST=localhost".to_string(),
         ];
-        
+
         let parsed = parse_env_vars(&vars).unwrap();
         assert_eq!(parsed.get("DEBUG"), Some(&"true".to_string()));
         assert_eq!(parsed.get("PORT"), Some(&"3000".to_string()));
@@ -529,24 +578,33 @@ mod tests {
     #[test]
     fn test_find_matching_servers() {
         let mut config = Config::default();
-        config.mcp_servers.insert("test-server-1".to_string(), McpServer {
-            command: "cmd1".to_string(),
-            args: vec![],
-            env: None,
-            other: HashMap::new(),
-        });
-        config.mcp_servers.insert("test-server-2".to_string(), McpServer {
-            command: "cmd2".to_string(),
-            args: vec![],
-            env: None,
-            other: HashMap::new(),
-        });
-        config.mcp_servers.insert("prod-server".to_string(), McpServer {
-            command: "cmd3".to_string(),
-            args: vec![],
-            env: None,
-            other: HashMap::new(),
-        });
+        config.mcp_servers.insert(
+            "test-server-1".to_string(),
+            McpServer {
+                command: "cmd1".to_string(),
+                args: vec![],
+                env: None,
+                other: HashMap::new(),
+            },
+        );
+        config.mcp_servers.insert(
+            "test-server-2".to_string(),
+            McpServer {
+                command: "cmd2".to_string(),
+                args: vec![],
+                env: None,
+                other: HashMap::new(),
+            },
+        );
+        config.mcp_servers.insert(
+            "prod-server".to_string(),
+            McpServer {
+                command: "cmd3".to_string(),
+                args: vec![],
+                env: None,
+                other: HashMap::new(),
+            },
+        );
 
         // Test pattern matching (contains)
         let matches = find_matching_servers(&config, Some("test-"), None).unwrap();
@@ -563,17 +621,15 @@ mod tests {
     #[test]
     fn test_batch_config_serialization() {
         let batch_config = BatchConfig {
-            servers: vec![
-                BatchServerConfig {
-                    name: "test1".to_string(),
-                    template: "filesystem".to_string(),
-                    vars: {
-                        let mut vars = HashMap::new();
-                        vars.insert("path".to_string(), "/tmp".to_string());
-                        vars
-                    },
+            servers: vec![BatchServerConfig {
+                name: "test1".to_string(),
+                template: "filesystem".to_string(),
+                vars: {
+                    let mut vars = HashMap::new();
+                    vars.insert("path".to_string(), "/tmp".to_string());
+                    vars
                 },
-            ],
+            }],
         };
 
         let json = serde_json::to_string(&batch_config).unwrap();
@@ -581,4 +637,4 @@ mod tests {
         assert_eq!(parsed.servers.len(), 1);
         assert_eq!(parsed.servers[0].name, "test1");
     }
-} 
+}

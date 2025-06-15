@@ -1,12 +1,12 @@
+use crate::config::Config;
+use crate::utils;
 use anyhow::{anyhow, Result};
+use clap::Subcommand;
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-use crate::config::Config;
-use crate::utils;
-use clap::Subcommand;
 
 /// Profile information
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -37,33 +37,21 @@ impl Default for ProfileConfig {
 /// Handle profile command routing
 pub async fn handle_profile_command(action: ProfileCommands) -> Result<()> {
     match action {
-        ProfileCommands::Create { name } => {
-            handle_profile_create(name).await
-        }
-        ProfileCommands::List => {
-            handle_profile_list().await
-        }
-        ProfileCommands::Switch { name } => {
-            handle_profile_switch(name).await
-        }
-        ProfileCommands::Current => {
-            handle_profile_current().await
-        }
-        ProfileCommands::Sync { from, to, dry_run } => {
-            handle_profile_sync(from, to, dry_run).await
-        }
-        ProfileCommands::Delete { name, force } => {
-            handle_profile_delete(name, force).await
-        }
+        ProfileCommands::Create { name } => handle_profile_create(name).await,
+        ProfileCommands::List => handle_profile_list().await,
+        ProfileCommands::Switch { name } => handle_profile_switch(name).await,
+        ProfileCommands::Current => handle_profile_current().await,
+        ProfileCommands::Sync { from, to, dry_run } => handle_profile_sync(from, to, dry_run).await,
+        ProfileCommands::Delete { name, force } => handle_profile_delete(name, force).await,
     }
 }
 
 /// Create a new profile
 async fn handle_profile_create(name: String) -> Result<()> {
     validate_profile_name(&name)?;
-    
+
     let mut profile_config = load_profile_config().await?;
-    
+
     if profile_config.profiles.contains_key(&name) {
         return Err(anyhow!("Profile '{}' already exists", name));
     }
@@ -79,24 +67,27 @@ async fn handle_profile_create(name: String) -> Result<()> {
 
     // Add to profile config
     profile_config.profiles.insert(name.clone(), profile_info);
-    
+
     // Create empty configuration for this profile
     let empty_config = Config::default();
     empty_config.save(Some(&name)).await?;
-    
+
     // Save profile config
     save_profile_config(&profile_config).await?;
-    
-    println!("{}", format!("✓ Profile '{}' created successfully", name).green());
+
+    println!(
+        "{}",
+        format!("✓ Profile '{}' created successfully", name).green()
+    );
     println!("  Switch to it with: mcp-forge profile switch {}", name);
-    
+
     Ok(())
 }
 
 /// List all profiles
 async fn handle_profile_list() -> Result<()> {
     let profile_config = load_profile_config().await?;
-    
+
     if profile_config.profiles.is_empty() {
         println!("{}", "No profiles found.".yellow());
         println!("Create a new profile with: mcp-forge profile create <name>");
@@ -107,24 +98,27 @@ async fn handle_profile_list() -> Result<()> {
     println!("{}", "─────────────────".cyan());
 
     let current = profile_config.current_profile.as_deref();
-    
+
     for (name, info) in &profile_config.profiles {
         let status = if Some(name.as_str()) == current {
             "CURRENT".green().bold()
         } else {
             "".normal()
         };
-        
+
         println!();
         println!("• {} {}", name.bold(), status);
-        println!("  Created: {}", info.created_at.format("%Y-%m-%d %H:%M UTC"));
-        
+        println!(
+            "  Created: {}",
+            info.created_at.format("%Y-%m-%d %H:%M UTC")
+        );
+
         if let Some(last_used) = info.last_used {
             println!("  Last used: {}", last_used.format("%Y-%m-%d %H:%M UTC"));
         }
-        
+
         println!("  Servers: {}", info.server_count);
-        
+
         if let Some(desc) = &info.description {
             println!("  Description: {}", desc.italic());
         }
@@ -144,46 +138,49 @@ async fn handle_profile_list() -> Result<()> {
 /// Switch to a different profile
 async fn handle_profile_switch(name: String) -> Result<()> {
     let mut profile_config = load_profile_config().await?;
-    
+
     if !profile_config.profiles.contains_key(&name) {
         return Err(anyhow!("Profile '{}' does not exist", name));
     }
 
     // Update current profile
     profile_config.current_profile = Some(name.clone());
-    
+
     // Update last used timestamp
     if let Some(profile_info) = profile_config.profiles.get_mut(&name) {
         profile_info.last_used = Some(chrono::Utc::now());
     }
-    
+
     save_profile_config(&profile_config).await?;
-    
+
     println!("{}", format!("✓ Switched to profile '{}'", name).green());
-    
+
     // Show basic info about the profile
     if let Ok(config) = Config::load(Some(&name)).await {
         println!("  Servers in this profile: {}", config.mcp_servers.len());
     }
-    
+
     Ok(())
 }
 
 /// Show current profile
 async fn handle_profile_current() -> Result<()> {
     let profile_config = load_profile_config().await?;
-    
+
     if let Some(current_name) = &profile_config.current_profile {
         println!("Current profile: {}", current_name.green().bold());
-        
+
         if let Some(profile_info) = profile_config.profiles.get(current_name) {
-            println!("  Created: {}", profile_info.created_at.format("%Y-%m-%d %H:%M UTC"));
+            println!(
+                "  Created: {}",
+                profile_info.created_at.format("%Y-%m-%d %H:%M UTC")
+            );
             if let Some(last_used) = profile_info.last_used {
                 println!("  Last used: {}", last_used.format("%Y-%m-%d %H:%M UTC"));
             }
             println!("  Servers: {}", profile_info.server_count);
         }
-        
+
         // Show servers in current profile
         if let Ok(config) = Config::load(Some(current_name)).await {
             if !config.mcp_servers.is_empty() {
@@ -201,14 +198,14 @@ async fn handle_profile_current() -> Result<()> {
             println!("  • {}", name);
         }
     }
-    
+
     Ok(())
 }
 
 /// Sync configuration between profiles
 async fn handle_profile_sync(from: String, to: String, dry_run: bool) -> Result<()> {
     let profile_config = load_profile_config().await?;
-    
+
     // Validate profiles exist
     if !profile_config.profiles.contains_key(&from) {
         return Err(anyhow!("Source profile '{}' does not exist", from));
@@ -225,21 +222,24 @@ async fn handle_profile_sync(from: String, to: String, dry_run: bool) -> Result<
         return Ok(());
     }
 
-    println!("{}", format!("Syncing configuration from '{}' to '{}'...", from, to).cyan());
+    println!(
+        "{}",
+        format!("Syncing configuration from '{}' to '{}'...", from, to).cyan()
+    );
 
     // Copy the entire configuration
     source_config.save(Some(&to)).await?;
-    
+
     println!("{}", format!("✓ Configuration synced successfully").green());
     println!("  Servers copied: {}", source_config.mcp_servers.len());
-    
+
     Ok(())
 }
 
 /// Delete a profile
 async fn handle_profile_delete(name: String, force: bool) -> Result<()> {
     let mut profile_config = load_profile_config().await?;
-    
+
     if !profile_config.profiles.contains_key(&name) {
         return Err(anyhow!("Profile '{}' does not exist", name));
     }
@@ -260,7 +260,7 @@ async fn handle_profile_delete(name: String, force: bool) -> Result<()> {
         }
         println!();
         print!("This action cannot be undone. Continue? [y/N]: ");
-        
+
         let mut input = String::new();
         std::io::stdin().read_line(&mut input)?;
         if !input.trim().to_lowercase().starts_with('y') {
@@ -272,16 +272,19 @@ async fn handle_profile_delete(name: String, force: bool) -> Result<()> {
     // Remove from profile config
     profile_config.profiles.remove(&name);
     save_profile_config(&profile_config).await?;
-    
+
     // Delete the profile's configuration file
     if let Ok(config_path) = get_profile_config_path(&name) {
         if config_path.exists() {
             fs::remove_file(config_path)?;
         }
     }
-    
-    println!("{}", format!("✓ Profile '{}' deleted successfully", name).green());
-    
+
+    println!(
+        "{}",
+        format!("✓ Profile '{}' deleted successfully", name).green()
+    );
+
     Ok(())
 }
 
@@ -294,14 +297,22 @@ async fn preview_profile_sync(
 ) -> Result<()> {
     println!("{}", "Profile Sync Preview".cyan().bold());
     println!("{}", "───────────────────".cyan());
-    println!("From: {} ({} servers)", from_name.bold(), source.mcp_servers.len());
-    println!("To: {} ({} servers)", to_name.bold(), target.mcp_servers.len());
+    println!(
+        "From: {} ({} servers)",
+        from_name.bold(),
+        source.mcp_servers.len()
+    );
+    println!(
+        "To: {} ({} servers)",
+        to_name.bold(),
+        target.mcp_servers.len()
+    );
     println!();
 
     // Show what would be added/overwritten
     let mut new_servers = Vec::new();
     let mut overwritten_servers = Vec::new();
-    
+
     for (name, _) in &source.mcp_servers {
         if target.mcp_servers.contains_key(name) {
             overwritten_servers.push(name);
@@ -309,7 +320,7 @@ async fn preview_profile_sync(
             new_servers.push(name);
         }
     }
-    
+
     if !new_servers.is_empty() {
         println!("Servers to be added:");
         for name in new_servers {
@@ -317,7 +328,7 @@ async fn preview_profile_sync(
         }
         println!();
     }
-    
+
     if !overwritten_servers.is_empty() {
         println!("Servers to be overwritten:");
         for name in overwritten_servers {
@@ -325,12 +336,14 @@ async fn preview_profile_sync(
         }
         println!();
     }
-    
+
     // Show servers that would be removed from target
-    let removed_servers: Vec<_> = target.mcp_servers.keys()
+    let removed_servers: Vec<_> = target
+        .mcp_servers
+        .keys()
         .filter(|name| !source.mcp_servers.contains_key(*name))
         .collect();
-    
+
     if !removed_servers.is_empty() {
         println!("Servers to be removed from target:");
         for name in removed_servers {
@@ -340,18 +353,18 @@ async fn preview_profile_sync(
     }
 
     println!("Run without --dry-run to apply these changes.");
-    
+
     Ok(())
 }
 
 /// Load profile configuration
 async fn load_profile_config() -> Result<ProfileConfig> {
     let profile_path = get_profiles_config_path()?;
-    
+
     if !profile_path.exists() {
         return Ok(ProfileConfig::default());
     }
-    
+
     let content = fs::read_to_string(&profile_path)?;
     let config: ProfileConfig = serde_json::from_str(&content)?;
     Ok(config)
@@ -360,15 +373,15 @@ async fn load_profile_config() -> Result<ProfileConfig> {
 /// Save profile configuration
 async fn save_profile_config(config: &ProfileConfig) -> Result<()> {
     let profile_path = get_profiles_config_path()?;
-    
+
     // Create parent directory if needed
     if let Some(parent) = profile_path.parent() {
         fs::create_dir_all(parent)?;
     }
-    
+
     let content = serde_json::to_string_pretty(config)?;
     fs::write(profile_path, content)?;
-    
+
     Ok(())
 }
 
@@ -389,25 +402,31 @@ fn validate_profile_name(name: &str) -> Result<()> {
     if name.is_empty() {
         return Err(anyhow!("Profile name cannot be empty"));
     }
-    
+
     if name.len() > 50 {
         return Err(anyhow!("Profile name cannot be longer than 50 characters"));
     }
-    
+
     // Check for invalid characters
-    if name.chars().any(|c| !c.is_alphanumeric() && c != '-' && c != '_') {
-        return Err(anyhow!("Profile name can only contain letters, numbers, hyphens, and underscores"));
+    if name
+        .chars()
+        .any(|c| !c.is_alphanumeric() && c != '-' && c != '_')
+    {
+        return Err(anyhow!(
+            "Profile name can only contain letters, numbers, hyphens, and underscores"
+        ));
     }
-    
+
     // Reserved names
-    if matches!(name.to_lowercase().as_str(), "default" | "main" | "config" | "global") {
+    if matches!(
+        name.to_lowercase().as_str(),
+        "default" | "main" | "config" | "global"
+    ) {
         return Err(anyhow!("'{}' is a reserved profile name", name));
     }
-    
+
     Ok(())
 }
-
-
 
 #[derive(Subcommand)]
 pub enum ProfileCommands {
@@ -469,7 +488,7 @@ mod tests {
     fn test_profile_config_serialization() {
         let mut config = ProfileConfig::default();
         config.current_profile = Some("test".to_string());
-        
+
         let profile_info = ProfileInfo {
             name: "test".to_string(),
             description: Some("Test profile".to_string()),
@@ -477,14 +496,14 @@ mod tests {
             last_used: None,
             server_count: 5,
         };
-        
+
         config.profiles.insert("test".to_string(), profile_info);
-        
+
         let json = serde_json::to_string(&config).unwrap();
         let parsed: ProfileConfig = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(parsed.current_profile, Some("test".to_string()));
         assert_eq!(parsed.profiles.len(), 1);
         assert_eq!(parsed.profiles["test"].server_count, 5);
     }
-} 
+}
