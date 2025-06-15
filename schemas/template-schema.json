@@ -1,0 +1,139 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/mcp-forge/templates/main/schemas/template-schema.json",
+  "title": "MCP-Forge Template Schema",
+  "description": "Schema for MCP-Forge template files",
+  "type": "object",
+  "required": ["name", "version", "description", "author", "tags", "platforms", "config"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "Template name (lowercase, alphanumeric, hyphens only)"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Template version (semantic versioning)"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "Brief description of the template"
+    },
+    "author": {
+      "type": "string",
+      "maxLength": 100,
+      "description": "Template author"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9-]+$"
+      },
+      "minItems": 1,
+      "description": "Tags for categorizing the template"
+    },
+    "platforms": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["windows", "macos", "linux"]
+      },
+      "minItems": 1,
+      "description": "Supported platforms"
+    },
+    "variables": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+          "type": "object",
+          "required": ["type", "description"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["string", "boolean", "number", "array", "select"]
+            },
+            "description": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "default": {
+              "description": "Default value for the variable"
+            },
+            "required": {
+              "type": "boolean",
+              "default": false
+            },
+            "validation": {
+              "type": "string",
+              "description": "Validation rule name"
+            },
+            "options": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Options for select type variables"
+            }
+          },
+          "if": {
+            "properties": { "type": { "const": "select" } }
+          },
+          "then": {
+            "required": ["options"]
+          }
+        }
+      },
+      "additionalProperties": false,
+      "description": "Template variables"
+    },
+    "config": {
+      "type": "object",
+      "required": ["command", "args"],
+      "properties": {
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Command to execute"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Command arguments"
+        },
+        "env": {
+          "type": "object",
+          "patternProperties": {
+            "^[A-Z_][A-Z0-9_]*$": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Environment variables"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Server configuration"
+    },
+    "requirements": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z0-9-]+$": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "description": "System requirements"
+    },
+    "setup_instructions": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Setup instructions for the template"
+    }
+  },
+  "additionalProperties": false
+} 

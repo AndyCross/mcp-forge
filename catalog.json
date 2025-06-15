@@ -1,0 +1,56 @@
+{
+  "version": "1.0.0",
+  "last_updated": "2024-06-15T12:00:00Z",
+  "templates": {
+    "filesystem": {
+      "name": "filesystem",
+      "version": "1.0.0",
+      "description": "Access local filesystem from Claude",
+      "author": "Anthropic",
+      "tags": ["filesystem", "official", "core"],
+      "platforms": ["windows", "macos", "linux"],
+      "category": "official",
+      "path": "templates/official/filesystem.json"
+    },
+    "brave-search": {
+      "name": "brave-search",
+      "version": "1.0.0", 
+      "description": "Search the web using Brave Search API",
+      "author": "Anthropic",
+      "tags": ["search", "web", "official"],
+      "platforms": ["windows", "macos", "linux"],
+      "category": "official",
+      "path": "templates/official/brave-search.json"
+    },
+    "sqlite": {
+      "name": "sqlite",
+      "version": "1.0.0",
+      "description": "Query SQLite databases from Claude",
+      "author": "Anthropic",
+      "tags": ["database", "sql", "official"],
+      "platforms": ["windows", "macos", "linux"],
+      "category": "official",
+      "path": "templates/official/sqlite.json"
+    },
+    "postgres": {
+      "name": "postgres",
+      "version": "1.0.0",
+      "description": "Query PostgreSQL databases from Claude",
+      "author": "Anthropic",
+      "tags": ["database", "sql", "official"],
+      "platforms": ["windows", "macos", "linux"],
+      "category": "official",
+      "path": "templates/official/postgres.json"
+    },
+    "github": {
+      "name": "github",
+      "version": "1.0.0",
+      "description": "Interact with GitHub repositories and issues",
+      "author": "Anthropic",
+      "tags": ["github", "api", "official"],
+      "platforms": ["windows", "macos", "linux"],
+      "category": "official",
+      "path": "templates/official/github.json"
+    }
+  }
+} 

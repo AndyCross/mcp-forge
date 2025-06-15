@@ -1,0 +1,42 @@
+{
+  "name": "github",
+  "version": "1.0.0",
+  "description": "Interact with GitHub repositories and issues",
+  "author": "Anthropic",
+  "tags": ["github", "api", "official"],
+  "platforms": ["windows", "macos", "linux"],
+  "variables": {
+    "github_token": {
+      "type": "string",
+      "description": "GitHub Personal Access Token",
+      "required": true,
+      "validation": "non_empty"
+    },
+    "default_owner": {
+      "type": "string",
+      "description": "Default repository owner/organization",
+      "required": false
+    },
+    "default_repo": {
+      "type": "string",
+      "description": "Default repository name",
+      "required": false
+    }
+  },
+  "config": {
+    "command": "npx",
+    "args": [
+      "-y",
+      "@modelcontextprotocol/server-github"
+    ],
+    "env": {
+      "GITHUB_TOKEN": "{{github_token}}",
+      "{{#if default_owner}}GITHUB_DEFAULT_OWNER{{/if}}": "{{default_owner}}",
+      "{{#if default_repo}}GITHUB_DEFAULT_REPO{{/if}}": "{{default_repo}}"
+    }
+  },
+  "requirements": {
+    "nodejs": ">=18.0.0"
+  },
+  "setup_instructions": "Create a GitHub Personal Access Token at https://github.com/settings/tokens with appropriate permissions for the repositories you want to access."
+} 

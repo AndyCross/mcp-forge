@@ -1,0 +1,64 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+
+# Cargo
+Cargo.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+
+# Runtime
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage
+coverage/
+*.lcov
+
+# Temporary files
+*.tmp
+*.temp
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Local configuration
+.env
+.env.local
+.env.*.local
+
+# Test artifacts
+test-results/
+test-output/
+
+# Documentation build
+docs/_build/
+site/
+
+# MCP Forge specific
+mcp-forge-backups/
+.mcp-forge/
+*.mcp-backup
+
+/.specstory
