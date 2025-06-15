@@ -1,464 +1,603 @@
-# MCP-Forge
+# 🔧 MCP-Forge
 
-A uvx-compatible CLI tool for managing Claude Desktop MCP server configurations with zero operational costs.
+**A powerful CLI tool for managing Claude Desktop MCP server configurations**
 
-## Overview
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org)
 
-MCP-Forge simplifies the management of Model Context Protocol (MCP) servers for Claude Desktop by providing:
+MCP-Forge is a comprehensive command-line tool designed to streamline the management of Model Context Protocol (MCP) servers in Claude Desktop. From basic server management to advanced enterprise features like bulk operations, configuration validation, and profile management.
 
-- **Template-based configuration** - Easy setup using pre-built templates
-- **Zero-cost operation** - Uses only GitHub as a storage backend, no paid services required
-- **Cross-platform support** - Works on Windows, macOS, and Linux
-- **Offline operation** - Cached templates work without internet connectivity
-- **Safe modifications** - Automatic backups before any configuration changes
+## ✨ Features
 
-## Features
+### 🚀 **Core Management**
+- **Server Management**: Add, remove, edit, and update MCP servers
+- **Template System**: Pre-built templates for popular MCP servers
+- **Configuration Validation**: Deep validation with health checks
+- **Interactive Setup**: Guided server configuration with variable prompts
 
-### ✅ Sprint 1 - Foundation (Available Now)
-- ✅ List, add, remove, and edit MCP servers
-- ✅ Cross-platform Claude Desktop config file detection
-- ✅ Automatic backup creation before modifications
-- ✅ JSON output support for scripting
-- ✅ Basic template support (filesystem, brave-search)
-- ✅ Interactive CLI prompts for easy configuration
+### 🔍 **Advanced Search & Filtering**
+- **Smart Filtering**: Filter servers by name, type, status, and custom criteria
+- **Semantic Search**: Find servers using natural language queries
+- **Ranking System**: Intelligent sorting and relevance scoring
+- **Multiple Output Formats**: JSON, table, and custom formatting
 
-### 🚧 Sprint 2 - Template System (Coming Soon)
-- 🚧 Full GitHub-based template repository
-- 🚧 Template variable substitution with Handlebars
-- 🚧 Local template caching for offline use
-- 🚧 Template validation and creation tools
+### 📦 **Bulk Operations**
+- **Pattern Matching**: Operate on multiple servers using glob patterns
+- **Batch Processing**: Update, validate, or manage multiple servers at once
+- **Progress Tracking**: Real-time progress for bulk operations
+- **Dry-Run Mode**: Preview changes before applying them
 
-### 📋 Sprint 3 - Advanced Features (Planned)
-- 📋 Enhanced filtering and search capabilities
-- 📋 Configuration validation and linting
-- 📋 Bulk operations and batch management
-- 📋 Dry-run mode for previewing changes
+### 💾 **Backup & Restore**
+- **Automated Backups**: Scheduled and manual backup creation
+- **Point-in-Time Recovery**: Restore configurations from any backup
+- **Incremental Backups**: Efficient storage with change tracking
+- **Cross-Profile Backups**: Backup and restore across different profiles
 
-### 🚀 Sprint 4 - Distribution (Planned)
-- 🚀 Pre-built binaries for all platforms
-- 🚀 Package manager distribution (Homebrew, Scoop)
-- 🚀 Auto-update functionality
-- 🚀 Comprehensive documentation site
+### 👤 **Profile Management**
+- **Multi-Environment Support**: Separate configurations for dev, staging, prod
+- **Profile Switching**: Easy switching between different environments
+- **Isolated Configurations**: Keep environments completely separate
+- **Profile-Specific Templates**: Custom templates per environment
 
-## Installation
+### 🔧 **Enterprise Features**
+- **Health Monitoring**: Comprehensive system health checks
+- **Configuration Import/Export**: Migrate configurations between systems
+- **Validation Rules**: Custom validation rules and requirements
+- **Audit Logging**: Track all configuration changes
 
-### Using UVX (Recommended)
+## 🚀 Quick Start
+
+### Installation
+
+#### From Source (Recommended)
 ```bash
-# Install from source (current)
-git clone https://github.com/mcp-forge/mcp-forge.git
+git clone https://github.com/yourusername/mcp-forge.git
 cd mcp-forge
 cargo build --release
-cp target/release/mcp-forge ~/.local/bin/
-
-# Future: Direct installation from registry
-# uvx install mcp-forge
+./target/release/mcp-forge --help
 ```
 
-### Using Cargo
+#### Using Cargo
 ```bash
-# Future: Install from crates.io
-# cargo install mcp-forge
+cargo install mcp-forge
 ```
 
-### Direct Download
-```bash
-# Future: Download pre-built binaries
-# curl -L https://github.com/mcp-forge/mcp-forge/releases/latest/download/mcp-forge-$(uname -s)-$(uname -m) -o mcp-forge
-# chmod +x mcp-forge
-```
+### Basic Usage
 
-## Quick Start
-
-### List Current Servers
 ```bash
-# Show all configured MCP servers
+# List all configured servers
 mcp-forge list
 
-# Filter by name or command
-mcp-forge list --filter filesystem
+# Add a new server from template
+mcp-forge add my-filesystem filesystem
 
-# Output as JSON for scripting
+# Add server with custom variables
+mcp-forge add my-search brave-search --vars "api_key=your_key_here"
+
+# Validate all configurations
+mcp-forge validate-all
+
+# Create a backup
+mcp-forge backup create
+```
+
+## 📚 Command Reference
+
+### Server Management
+
+#### `list` - List MCP servers
+```bash
+# Basic listing
+mcp-forge list
+
+# Filter by name pattern
+mcp-forge list --filter "filesystem*"
+
+# Show only active servers
+mcp-forge list --status active
+
+# JSON output for scripting
 mcp-forge list --json
+
+# Advanced filtering
+mcp-forge list --type filesystem --sort name --limit 10
 ```
 
-### Add New Servers
+#### `add` - Add new server
 ```bash
-# Add filesystem server (interactive)
-mcp-forge add my-files filesystem
+# Add from template
+mcp-forge add server-name template-name
 
-# Add with predefined variables
-mcp-forge add docs filesystem --vars "paths=~/Documents,~/Projects"
+# Add with variables
+mcp-forge add my-fs filesystem --vars "path=/home/user/docs"
 
-# Add Brave Search server
-mcp-forge add web-search brave-search --vars "api_key=your_api_key_here"
+# Interactive mode (prompts for variables)
+mcp-forge add my-server template-name --interactive
 ```
 
-### Manage Existing Servers
+#### `remove` - Remove servers
 ```bash
-# Edit server configuration
-mcp-forge edit my-files
+# Remove specific server
+mcp-forge remove server-name
 
-# Update server arguments
-mcp-forge update my-files --args "~/Documents ~/Downloads"
-
-# Remove a server
-mcp-forge remove my-files
+# Remove multiple servers
+mcp-forge remove --pattern "test-*"
 
 # Remove all servers (with confirmation)
 mcp-forge remove --all
 ```
 
-### Configuration Management
+#### `edit` - Edit server configuration
 ```bash
-# Show current configuration
-mcp-forge config show
+# Edit server in default editor
+mcp-forge edit server-name
 
-# Validate configuration
-mcp-forge config validate
-
-# Create backup
-mcp-forge config backup
-
-# Show config file location
-mcp-forge config path
+# Edit with specific editor
+EDITOR=vim mcp-forge edit server-name
 ```
 
-### Template Operations
+#### `update` - Update server configuration
+```bash
+# Update server arguments
+mcp-forge update server-name --args "new_arg=value"
+
+# Update from template
+mcp-forge update server-name --template new-template
+```
+
+### Validation & Health
+
+#### `validate` - Validate configurations
+```bash
+# Validate specific server
+mcp-forge validate server-name
+
+# Deep validation with system checks
+mcp-forge validate --deep --requirements
+
+# Validate all servers
+mcp-forge validate-all
+
+# Validate with custom profile
+mcp-forge --profile production validate-all
+```
+
+#### `health` - System health check
+```bash
+# Basic health check
+mcp-forge health
+
+# Detailed health report
+mcp-forge health --detailed
+
+# Health check for specific profile
+mcp-forge --profile staging health
+```
+
+#### `doctor` - System diagnostic
+```bash
+# Run full diagnostic
+mcp-forge doctor
+
+# Quick diagnostic
+mcp-forge doctor --quick
+
+# Fix common issues automatically
+mcp-forge doctor --fix
+```
+
+### Bulk Operations
+
+#### `bulk` - Bulk operations
+```bash
+# Update multiple servers
+mcp-forge bulk update --pattern "api-*" --args "timeout=30"
+
+# Validate multiple servers
+mcp-forge bulk validate --pattern "prod-*"
+
+# Remove multiple servers
+mcp-forge bulk remove --pattern "test-*" --dry-run
+
+# Bulk operations with confirmation
+mcp-forge bulk update --pattern "*" --interactive
+```
+
+### Backup & Restore
+
+#### `backup` - Backup operations
+```bash
+# Create manual backup
+mcp-forge backup create
+
+# Create named backup
+mcp-forge backup create --name "before-migration"
+
+# List all backups
+mcp-forge backup list
+
+# Restore from backup
+mcp-forge backup restore backup-2024-01-15.json
+
+# Auto-cleanup old backups
+mcp-forge backup cleanup --keep 10
+```
+
+### Profile Management
+
+#### `profile` - Profile operations
+```bash
+# List all profiles
+mcp-forge profile list
+
+# Create new profile
+mcp-forge profile create development
+
+# Switch to profile
+mcp-forge profile use development
+
+# Copy profile
+mcp-forge profile copy production staging
+
+# Delete profile
+mcp-forge profile delete old-profile
+```
+
+### Template Management
+
+#### `template` - Template operations
 ```bash
 # List available templates
 mcp-forge template list
 
 # Show template details
 mcp-forge template show filesystem
+
+# Validate template
+mcp-forge template validate custom-template.json
+
+# Create new template
+mcp-forge template create my-template
 ```
 
-## Configuration File Locations
+### Configuration Management
 
-MCP-Forge automatically detects the Claude Desktop configuration file location:
+#### `config` - Configuration operations
+```bash
+# Show current configuration
+mcp-forge config show
+
+# Show configuration file path
+mcp-forge config path
+
+# Initialize new configuration
+mcp-forge config init
+
+# Validate configuration file
+mcp-forge config validate
+```
+
+### Import/Export
+
+#### `import` - Import configurations
+```bash
+# Import from file
+mcp-forge import --file config.json
+
+# Import with merge strategy
+mcp-forge import --file config.json --merge
+
+# Import to specific profile
+mcp-forge --profile staging import --file prod-config.json
+```
+
+#### `export` - Export configurations
+```bash
+# Export current configuration
+mcp-forge export --output config.json
+
+# Export specific profile
+mcp-forge --profile production export --output prod-config.json
+
+# Export with formatting
+mcp-forge export --format yaml --output config.yaml
+```
+
+## 🎯 Advanced Usage
+
+### Working with Profiles
+
+Profiles allow you to maintain separate configurations for different environments:
+
+```bash
+# Create profiles for different environments
+mcp-forge profile create development
+mcp-forge profile create staging
+mcp-forge profile create production
+
+# Add servers to specific profiles
+mcp-forge --profile development add dev-fs filesystem --vars "path=/tmp"
+mcp-forge --profile production add prod-fs filesystem --vars "path=/data"
+
+# Switch between profiles
+mcp-forge profile use development
+mcp-forge list  # Shows only development servers
+
+# Backup specific profile
+mcp-forge --profile production backup create --name "prod-backup"
+```
+
+### Bulk Operations with Patterns
+
+Use glob patterns for powerful bulk operations:
+
+```bash
+# Update all API servers
+mcp-forge bulk update --pattern "api-*" --args "timeout=60"
+
+# Validate all production servers
+mcp-forge bulk validate --pattern "prod-*" --deep
+
+# Remove all test servers (with dry-run first)
+mcp-forge bulk remove --pattern "test-*" --dry-run
+mcp-forge bulk remove --pattern "test-*"  # Execute after review
+```
+
+### Advanced Filtering
+
+Combine multiple filters for precise server selection:
+
+```bash
+# Find filesystem servers with specific status
+mcp-forge list --type filesystem --status active
+
+# Search servers by description
+mcp-forge list --search "database" --sort relevance
+
+# Complex filtering with JSON output
+mcp-forge list --type api --status active --limit 5 --json
+```
+
+### Configuration Validation
+
+Ensure your configurations are always valid:
+
+```bash
+# Deep validation with system requirements
+mcp-forge validate --deep --requirements
+
+# Validate before deployment
+mcp-forge --profile production validate-all --strict
+
+# Custom validation rules
+mcp-forge validate --rules custom-rules.json
+```
+
+## 🔧 Configuration
+
+### Configuration File Location
+
+MCP-Forge uses the standard Claude Desktop configuration file:
 
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 - **Linux**: `~/.config/claude/claude_desktop_config.json`
 
-## Built-in Templates (Sprint 1)
+### Profile Configuration
 
-### Filesystem Server
-Provides Claude with access to local directories.
+Profiles are stored in:
+- **macOS**: `~/Library/Application Support/Claude/profiles/`
+- **Windows**: `%APPDATA%\Claude\profiles\`
+- **Linux**: `~/.config/claude/profiles/`
 
-```bash
-mcp-forge add files filesystem --vars "paths=~/Desktop,~/Downloads"
-```
-
-**Variables:**
-- `paths` - Comma-separated list of directories to grant access to
-
-### Brave Search Server
-Enables Claude to search the web using Brave Search API.
+### Environment Variables
 
 ```bash
-mcp-forge add search brave-search --vars "api_key=YOUR_API_KEY"
+# Custom configuration path
+export CLAUDE_CONFIG_PATH="/path/to/custom/config.json"
+
+# Default profile
+export MCP_FORGE_PROFILE="production"
+
+# Editor for configuration editing
+export EDITOR="code"
+
+# Backup directory
+export MCP_FORGE_BACKUP_DIR="/path/to/backups"
 ```
 
-**Variables:**  
-- `api_key` - Your Brave Search API key (required)
+## 📋 Available Templates
 
-## Safety Features
+### Core Templates
 
-- **Automatic Backups**: Every modification creates a timestamped backup
-- **Validation**: Configuration files are validated before saving
-- **Confirmation Prompts**: Destructive operations require confirmation
-- **Atomic Operations**: Changes are applied atomically to prevent corruption
+| Template | Description | Variables |
+|----------|-------------|-----------|
+| `filesystem` | File system access | `path` (required) |
+| `brave-search` | Brave Search API | `api_key` (required) |
+| `postgres` | PostgreSQL database | `connection_string` (required) |
+| `sqlite` | SQLite database | `db_path` (required) |
+| `github` | GitHub API integration | `token` (optional) |
 
-## Architecture & Design
+### Template Variables
 
-MCP-Forge follows a zero-cost operation model:
+Templates support five variable types:
 
-- **No Database**: All data stored in GitHub repositories
-- **No APIs**: No paid external services or authentication required
-- **No Hosting**: Runs entirely locally as a static binary
-- **GitHub Only**: Uses GitHub as the universal storage backend
+1. **String**: Simple text values
+2. **Number**: Numeric values with validation
+3. **Boolean**: True/false values
+4. **Array**: List of values
+5. **Object**: Complex nested structures
 
-## Development
-
-### Building from Source
-```bash
-git clone https://github.com/mcp-forge/mcp-forge.git
-cd mcp-forge
-cargo build --release
-```
-
-### Running Tests
-```bash
-cargo test
-```
-
-### Development Dependencies
-- Rust 1.70+ (2021 edition)
-- Git for repository operations
-
-## Contributing
-
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-### Sprint Roadmap
-We're following a structured 5-week sprint plan:
-
-1. **Sprint 1**: Foundation & Core Operations (✅ Complete)
-2. **Sprint 2**: Template System with GitHub Integration
-3. **Sprint 3**: Advanced Features & Polish
-4. **Sprint 4**: Distribution & Community Features
-5. **Sprint 5**: Documentation & Launch
-
-## License
-
-Licensed under either of:
-
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
-- MIT License ([LICENSE-MIT](LICENSE-MIT))
-
-at your option.
-
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/mcp-forge/mcp-forge/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/mcp-forge/mcp-forge/discussions)
-- **Documentation**: [Project Wiki](https://github.com/mcp-forge/mcp-forge/wiki)
-
----
-
-**Status**: Sprint 1 Complete ✅ | Next: Sprint 2 Template System 🚧 
-
-# MCP-Forge Templates
-
-This repository contains the official template collection for [MCP-Forge](https://github.com/mcp-forge/mcp-forge), a CLI tool for managing Claude Desktop MCP server configurations.
-
-## Repository Structure
-
-```
-├── catalog.json                   # Master template index
-├── templates/
-│   ├── official/                  # Official templates by Anthropic
-│   │   ├── filesystem.json
-│   │   ├── brave-search.json
-│   │   ├── sqlite.json
-│   │   ├── postgres.json
-│   │   └── github.json
-│   └── community/                 # Community-contributed templates
-├── schemas/
-│   └── template-schema.json       # JSON schema for template validation
-└── examples/                      # Example templates and configurations
-```
-
-## Available Templates
-
-### 🏛️ Official Templates
-
-- **filesystem** - Access local filesystem from Claude
-- **brave-search** - Search the web using Brave Search API
-- **sqlite** - Query SQLite databases from Claude
-- **postgres** - Query PostgreSQL databases from Claude
-- **github** - Interact with GitHub repositories and issues
-
-### 👥 Community Templates
-
-Community templates will be added as contributions are made. See [Contributing](#contributing) below.
-
-## Template Format
-
-Templates use a standardized JSON format with variable substitution powered by Handlebars. Here's the structure:
+Example template with all variable types:
 
 ```json
 {
-  "name": "template-name",
-  "version": "1.0.0",
-  "description": "Brief description of what this template does",
-  "author": "Author Name",
-  "tags": ["category", "type"],
-  "platforms": ["windows", "macos", "linux"],
+  "name": "example-server",
+  "description": "Example server with all variable types",
+  "config": {
+    "command": "example-server",
+    "args": ["--config", "{{config_path}}"]
+  },
   "variables": {
-    "variable_name": {
-      "type": "string|boolean|number|array|select",
-      "description": "Description of this variable",
-      "default": "optional_default_value",
-      "required": true,
-      "options": ["for", "select", "type"] // only for select type
+    "config_path": {
+      "type": "string",
+      "description": "Path to configuration file",
+      "required": true
+    },
+    "port": {
+      "type": "number",
+      "description": "Server port",
+      "default": 8080,
+      "min": 1024,
+      "max": 65535
+    },
+    "enabled": {
+      "type": "boolean",
+      "description": "Enable the server",
+      "default": true
+    },
+    "features": {
+      "type": "array",
+      "description": "Enabled features",
+      "items": "string",
+      "default": ["basic", "advanced"]
+    },
+    "database": {
+      "type": "object",
+      "description": "Database configuration",
+      "properties": {
+        "host": {"type": "string", "required": true},
+        "port": {"type": "number", "default": 5432}
+      }
     }
-  },
-  "config": {
-    "command": "command_to_run",
-    "args": ["arg1", "{{variable_name}}"],
-    "env": {
-      "ENV_VAR": "{{variable_value}}"
-    }
-  },
-  "requirements": {
-    "nodejs": ">=18.0.0"
-  },
-  "setup_instructions": "Instructions for setting up this template"
-}
-```
-
-### Variable Types
-
-- **string** - Text input
-- **boolean** - True/false choice
-- **number** - Numeric input
-- **array** - List of values (comma-separated in CLI)
-- **select** - Choose from predefined options
-
-### Built-in Variables
-
-Templates can use these built-in variables:
-
-- `{{os}}` - Operating system (windows, macos, linux)
-- `{{arch}}` - Architecture (x64, arm64)
-- `{{home_dir}}` - User's home directory
-- `{{config_dir}}` - Claude config directory
-
-## Using Templates
-
-### With MCP-Forge
-
-```bash
-# List available templates
-mcp-forge template list
-
-# Show template details
-mcp-forge template show filesystem
-
-# Add server using template (interactive)
-mcp-forge add my-filesystem filesystem
-
-# Add server using template (non-interactive)
-mcp-forge add my-filesystem filesystem --vars paths=/home/user/docs,readonly=false
-```
-
-### Manual Installation
-
-You can also download and use templates manually:
-
-```bash
-# Download template
-curl -o filesystem.json https://raw.githubusercontent.com/mcp-forge/templates/main/templates/official/filesystem.json
-
-# Validate template
-mcp-forge template validate filesystem.json
-```
-
-## Contributing
-
-We welcome community contributions! Here's how to contribute:
-
-### 1. Fork and Clone
-
-```bash
-git clone https://github.com/your-username/templates.git
-cd templates
-```
-
-### 2. Create a New Template
-
-```bash
-# Create template file
-mkdir -p templates/community
-cat > templates/community/my-template.json << 'EOF'
-{
-  "name": "my-template",
-  "version": "1.0.0",
-  "description": "Description of my template",
-  "author": "Your Name",
-  "tags": ["category"],
-  "platforms": ["windows", "macos", "linux"],
-  "variables": {},
-  "config": {
-    "command": "command",
-    "args": []
-  }
-}
-EOF
-```
-
-### 3. Validate Your Template
-
-```bash
-# Install mcp-forge if you haven't already
-uvx install mcp-forge
-
-# Validate template
-mcp-forge template validate templates/community/my-template.json
-```
-
-### 4. Update Catalog
-
-Add your template to `catalog.json`:
-
-```json
-{
-  "my-template": {
-    "name": "my-template",
-    "version": "1.0.0",
-    "description": "Description of my template",
-    "author": "Your Name",
-    "tags": ["category"],
-    "platforms": ["windows", "macos", "linux"],
-    "category": "community",
-    "path": "templates/community/my-template.json"
   }
 }
 ```
 
-### 5. Submit Pull Request
+## 🔍 Troubleshooting
 
-1. Test your template thoroughly
-2. Ensure it follows the schema
-3. Add documentation if needed
-4. Submit a pull request with a clear description
+### Common Issues
 
-## Template Guidelines
-
-### Quality Standards
-
-- ✅ Follow the JSON schema
-- ✅ Include comprehensive variable descriptions
-- ✅ Provide setup instructions
-- ✅ Test on multiple platforms
-- ✅ Use semantic versioning
-
-### Security Best Practices
-
-- 🔒 Never include hardcoded secrets
-- 🔒 Use environment variables for sensitive data
-- 🔒 Validate user inputs appropriately
-- 🔒 Follow principle of least privilege
-
-### Naming Conventions
-
-- Template names: `lowercase-with-hyphens`
-- Variable names: `snake_case` or `camelCase`
-- Environment variables: `UPPER_CASE`
-
-## Schema Validation
-
-All templates are validated against the JSON schema in `schemas/template-schema.json`. You can validate your templates using:
-
+#### Configuration File Not Found
 ```bash
-# Using mcp-forge
-mcp-forge template validate my-template.json
+# Initialize configuration
+mcp-forge config init
 
-# Using a JSON schema validator
-ajv validate -s schemas/template-schema.json -d templates/community/my-template.json
+# Check configuration path
+mcp-forge config path
+
+# Verify Claude Desktop is installed
+mcp-forge doctor
 ```
 
-## Support
+#### Server Not Starting
+```bash
+# Validate server configuration
+mcp-forge validate server-name --deep
 
-- 📖 [MCP-Forge Documentation](https://github.com/mcp-forge/mcp-forge)
-- 🐛 [Report Issues](https://github.com/mcp-forge/templates/issues)
-- 💬 [Discussions](https://github.com/mcp-forge/templates/discussions)
+# Check system requirements
+mcp-forge validate --requirements
 
-## License
+# Run health check
+mcp-forge health --detailed
+```
 
-This repository is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+#### Template Variables Not Working
+```bash
+# Validate template
+mcp-forge template validate template-name
+
+# Check variable syntax
+mcp-forge template show template-name
+
+# Use interactive mode for guidance
+mcp-forge add server-name template-name --interactive
+```
+
+#### Profile Issues
+```bash
+# List available profiles
+mcp-forge profile list
+
+# Check current profile
+mcp-forge profile current
+
+# Reset to default profile
+mcp-forge profile use default
+```
+
+### Debug Mode
+
+Enable verbose output for troubleshooting:
+
+```bash
+# Verbose output
+mcp-forge --verbose command
+
+# Debug logging
+RUST_LOG=debug mcp-forge command
+
+# Trace logging (very detailed)
+RUST_LOG=trace mcp-forge command
+```
+
+### Getting Help
+
+```bash
+# General help
+mcp-forge --help
+
+# Command-specific help
+mcp-forge command --help
+
+# Show version
+mcp-forge --version
+
+# Run system diagnostic
+mcp-forge doctor
+```
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+### Development Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/mcp-forge.git
+cd mcp-forge
+
+# Install dependencies
+cargo build
+
+# Run tests
+cargo test
+
+# Run with debug logging
+RUST_LOG=debug cargo run -- --help
+```
+
+### Template Development
+
+See our [Template Development Guide](docs/template-development.md) for creating custom templates.
+
+## 📄 License
+
+This project is dual-licensed under:
+
+- [MIT License](LICENSE-MIT)
+- [Apache License 2.0](LICENSE-APACHE)
+
+You may choose either license for your use.
+
+## 🙏 Acknowledgments
+
+- [Claude Desktop](https://claude.ai) for the MCP protocol
+- [Anthropic](https://anthropic.com) for Claude and MCP development
+- The Rust community for excellent tooling and libraries
 
 ---
 
-**Happy templating!** 🚀 
+**Made with ❤️ for the Claude Desktop community** 
