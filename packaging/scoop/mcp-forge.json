@@ -1,11 +1,11 @@
 {
-    "version": "0.3.0",
+    "version": "0.3.1",
     "description": "A powerful CLI tool for managing Claude Desktop MCP server configurations",
     "homepage": "https://github.com/AndyCross/mcp-forge",
     "license": "MIT OR Apache-2.0",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/AndyCross/mcp-forge/releases/download/v0.3.0/mcp-forge-windows-x86_64.zip",
+            "url": "https://github.com/AndyCross/mcp-forge/releases/download/v0.3.1/mcp-forge-windows-x86_64.zip",
             "hash": "REPLACE_WITH_ACTUAL_HASH",
             "bin": "mcp-forge.exe"
         }

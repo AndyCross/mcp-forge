@@ -8,11 +8,19 @@
 
 MCP-Forge is a comprehensive command-line tool designed to streamline the management of Model Context Protocol (MCP) servers in Claude Desktop. From basic server management to advanced enterprise features like bulk operations, configuration validation, and profile management.
 
+## 🆕 Recent Updates (v0.3.1)
+
+- **🧹 Code Quality**: Eliminated all build warnings and cleaned up 600+ lines of dead code
+- **📦 Template Repository**: Moved templates to separate repository for better management
+- **🔧 CI/CD Improvements**: Updated GitHub Actions for reliable releases
+- **✅ Enhanced Testing**: All 25 unit tests passing with comprehensive coverage
+- **🚀 Performance**: Improved code patterns and reduced binary size
+
 ## ✨ Features
 
 ### 🚀 **Core Management**
 - **Server Management**: Add, remove, edit, and update MCP servers
-- **Template System**: Pre-built templates for popular MCP servers
+- **Template System**: Pre-built templates from separate repository for popular MCP servers
 - **Configuration Validation**: Deep validation with health checks
 - **Interactive Setup**: Guided server configuration with variable prompts
 
@@ -270,11 +278,17 @@ mcp-forge profile delete old-profile
 
 #### `template` - Template operations
 ```bash
-# List available templates
+# List available templates (fetched from GitHub)
 mcp-forge template list
 
 # Show template details
 mcp-forge template show filesystem
+
+# Search templates by tag or description
+mcp-forge template search database
+
+# Refresh template cache from repository
+mcp-forge template refresh
 
 # Validate template
 mcp-forge template validate custom-template.json
@@ -429,17 +443,50 @@ export EDITOR="code"
 export MCP_FORGE_BACKUP_DIR="/path/to/backups"
 ```
 
-## 📋 Available Templates
+## 📋 Template System
 
-### Core Templates
+### Template Repository Architecture
 
-| Template | Description | Variables |
-|----------|-------------|-----------|
-| `filesystem` | File system access | `path` (required) |
-| `brave-search` | Brave Search API | `api_key` (required) |
-| `postgres` | PostgreSQL database | `connection_string` (required) |
-| `sqlite` | SQLite database | `db_path` (required) |
-| `github` | GitHub API integration | `token` (optional) |
+MCP-Forge uses a separate repository for templates to enable:
+- **Independent Updates**: Templates can be updated without releasing new versions of MCP-Forge
+- **Community Contributions**: Easy for community members to contribute new templates
+- **Centralized Management**: All templates are managed in one place
+- **Automatic Fetching**: Templates are automatically fetched from GitHub and cached locally
+
+**Template Repository**: [mcp-forge-templates](https://github.com/AndyCross/mcp-forge-templates)
+
+### How Templates Work
+
+1. **Catalog Fetching**: MCP-Forge fetches a catalog of available templates from GitHub
+2. **Local Caching**: Templates are cached locally for offline use and performance
+3. **Automatic Updates**: Cache is refreshed periodically or manually with `mcp-forge template refresh`
+4. **Template Installation**: Templates are applied with variable substitution to create server configurations
+
+### Available Templates
+
+| Template | Description | Variables | Repository |
+|----------|-------------|-----------|-----------|
+| `filesystem` | Local filesystem access | `readonly`, `paths` | [Official](https://github.com/AndyCross/mcp-forge-templates) |
+| `brave-search` | Brave Search API integration | `api_key` (required) | [Official](https://github.com/AndyCross/mcp-forge-templates) |
+| `postgres` | PostgreSQL database connection | `connection_string` (required) | [Official](https://github.com/AndyCross/mcp-forge-templates) |
+| `sqlite` | SQLite database connection | `db_path` (required) | [Official](https://github.com/AndyCross/mcp-forge-templates) |
+| `github` | GitHub API integration | `token` (optional) | [Official](https://github.com/AndyCross/mcp-forge-templates) |
+
+### Template Usage Examples
+
+```bash
+# List all available templates
+mcp-forge template list
+
+# Show detailed information about a template
+mcp-forge template show filesystem
+
+# Add a server using a template
+mcp-forge add my-files filesystem --vars "readonly=true,paths=['/home/user/docs']"
+
+# Interactive template installation with prompts
+mcp-forge add my-db postgres --interactive
+```
 
 ### Template Variables
 
@@ -603,7 +650,54 @@ RUST_LOG=debug cargo run -- --help
 
 ### Template Development
 
-See our [Template Development Guide](docs/template-development.md) for creating custom templates.
+#### Contributing Templates
+
+Templates are managed in a separate repository for easier community contributions:
+
+1. **Fork the Templates Repository**: [mcp-forge-templates](https://github.com/AndyCross/mcp-forge-templates)
+2. **Add Your Template**: Create a new JSON file in the `official/` directory
+3. **Update Catalog**: Add your template to `catalog.json`
+4. **Submit Pull Request**: Submit a PR with your new template
+
+#### Template Structure
+
+Templates follow a standardized JSON format:
+
+```json
+{
+  "name": "my-template",
+  "version": "1.0.0",
+  "description": "Description of what this template does",
+  "author": "Your Name",
+  "tags": ["category", "type"],
+  "platforms": ["macos", "linux", "windows"],
+  "variables": {
+    "required_var": {
+      "type": "string",
+      "description": "Description of this variable",
+      "required": true
+    },
+    "optional_var": {
+      "type": "boolean", 
+      "description": "Optional variable with default",
+      "default": false
+    }
+  },
+  "config": {
+    "command": "your-command",
+    "args": ["--arg", "{{required_var}}"],
+    "env": {
+      "ENV_VAR": "{{optional_var}}"
+    }
+  },
+  "requirements": {
+    "nodejs": ">=18.0.0"
+  },
+  "setup_instructions": "Additional setup instructions if needed"
+}
+```
+
+See our [Template Development Guide](docs/template-development.md) for detailed information on creating custom templates.
 
 ## 📄 License
 

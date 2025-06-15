@@ -1,0 +1,63 @@
+name: Update Packaging Files
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  update-packaging:
+    name: Update Package Managers
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Extract version from tag
+      id: version
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION"
+        
+    - name: Update Scoop manifest
+      run: |
+        VERSION=${{ steps.version.outputs.version }}
+        SCOOP_FILE="packaging/scoop/mcp-forge.json"
+        
+        # Update version
+        sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" "$SCOOP_FILE"
+        
+        # Update download URL
+        sed -i "s|releases/download/v[0-9]\+\.[0-9]\+\.[0-9]\+/|releases/download/v$VERSION/|g" "$SCOOP_FILE"
+        
+        echo "Updated Scoop manifest:"
+        cat "$SCOOP_FILE"
+        
+    - name: Update Homebrew formula
+      run: |
+        VERSION=${{ steps.version.outputs.version }}
+        HOMEBREW_FILE="packaging/homebrew/mcp-forge.rb"
+        
+        # Update archive URL
+        sed -i "s|archive/v[0-9]\+\.[0-9]\+\.[0-9]\+\.tar\.gz|archive/v$VERSION.tar.gz|g" "$HOMEBREW_FILE"
+        
+        echo "Updated Homebrew formula:"
+        cat "$HOMEBREW_FILE"
+        
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: "chore: update packaging files for v${{ steps.version.outputs.version }}"
+        title: "Update packaging files for v${{ steps.version.outputs.version }}"
+        body: |
+          Automatically generated PR to update packaging files for release v${{ steps.version.outputs.version }}.
+          
+          Changes:
+          - Updated Scoop manifest version and download URL
+          - Updated Homebrew formula archive URL
+          
+          **Note**: SHA256 hashes will need to be updated manually after the release assets are available.
+        branch: update-packaging-v${{ steps.version.outputs.version }}
+        delete-branch: true 

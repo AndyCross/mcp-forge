@@ -12,6 +12,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Contributing guidelines
 - Development setup instructions
 
+## [0.3.1] - 2024-12-15 - Code Quality & Template Repository
+
+### Added
+- **Separate Template Repository**
+  - Templates moved to dedicated [mcp-forge-templates](https://github.com/AndyCross/mcp-forge-templates) repository
+  - Template catalog system for centralized template management
+  - Automatic template fetching and caching from GitHub
+  - Community-friendly template contribution workflow
+
+- **Enhanced Template Commands**
+  - `template refresh` - Refresh template cache from repository
+  - `template search` - Search templates by tags and description
+  - Improved template listing with repository links
+  - Better template metadata display
+
+### Enhanced
+- **Code Quality Improvements**
+  - Eliminated all 46 build warnings (46 → 0)
+  - Fixed all 25 clippy warnings for better code quality
+  - Removed ~600+ lines of dead/unused code
+  - Improved code patterns and performance optimizations
+
+- **CI/CD Pipeline**
+  - Updated GitHub Actions to use non-deprecated versions (v4)
+  - Fixed artifact upload/download actions
+  - Improved release automation and binary builds
+  - Enhanced cross-platform build reliability
+
+- **Template System Architecture**
+  - Catalog-based template fetching from separate repository
+  - Improved template path resolution and error handling
+  - Better template caching and offline support
+  - Enhanced template validation and metadata
+
+### Fixed
+- All clippy warnings resolved (collapsible if statements, unnecessary map_or, etc.)
+- GitHub Actions deprecated action warnings
+- Template repository path resolution issues
+- Code formatting compliance across all files
+- Needless borrows and references for better performance
+
+### Technical
+- **Code Cleanup**
+  - Replaced manual Default implementations with derive attributes
+  - Improved field initialization patterns
+  - Better async/await patterns and error handling
+  - Removed unused functions and imports across all modules
+
+- **Repository Architecture**
+  - Templates separated into independent repository
+  - GitHub client updated to fetch from new template repository
+  - Template catalog system for metadata management
+  - Improved modularity and maintainability
+
+- **Build System**
+  - Zero warnings in both debug and release modes
+  - All 25 unit tests passing
+  - Improved compilation times
+  - Better error messages and debugging support
+
+### Migration Notes
+- Templates are now fetched from the separate repository automatically
+- Existing template functionality remains unchanged for users
+- Template cache will be refreshed automatically on first use
+- No breaking changes to CLI commands or functionality
+
 ## [0.3.0] - 2024-01-15 - Sprint 3: Advanced Features & Polish
 
 ### Added
@@ -220,6 +286,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ## Release Notes
+
+### v0.3.1 Highlights - Code Quality & Architecture
+This maintenance release focuses on code quality, architecture improvements, and template system enhancement. The separation of templates into their own repository enables better community contributions and independent template updates.
+
+**Key Achievements:**
+- ✅ Zero build warnings (eliminated all 46 warnings)
+- ✅ Zero clippy warnings (fixed all 25 code quality issues)
+- ✅ Removed 600+ lines of dead code for cleaner codebase
+- ✅ Templates moved to separate repository for better management
+- ✅ Enhanced CI/CD pipeline with updated GitHub Actions
+- ✅ All 25 unit tests passing with improved reliability
+
+**Template Repository Benefits:**
+- Independent template updates without new releases
+- Community-friendly contribution workflow
+- Centralized template management and discovery
+- Automatic fetching and caching system
 
 ### Sprint 3 Highlights (v0.3.0)
 This release represents a major milestone in MCP-Forge development, transforming it from a basic CLI tool into a comprehensive, enterprise-ready MCP server management solution. The addition of advanced features like bulk operations, profile management, and comprehensive validation makes MCP-Forge suitable for production environments and complex deployment scenarios.

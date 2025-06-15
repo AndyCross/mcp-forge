@@ -1,7 +1,7 @@
 class McpForge < Formula
   desc "A powerful CLI tool for managing Claude Desktop MCP server configurations"
   homepage "https://github.com/AndyCross/mcp-forge"
-  url "https://github.com/AndyCross/mcp-forge/archive/v0.3.0.tar.gz"
+  url "https://github.com/AndyCross/mcp-forge/archive/v0.3.1.tar.gz"
   sha256 "c633f557679c19760b99a25d5d243486defe90c076ad62ed345b8fa23c66efd9"
   license any_of: ["MIT", "Apache-2.0"]
   head "https://github.com/AndyCross/mcp-forge.git", branch: "main"
