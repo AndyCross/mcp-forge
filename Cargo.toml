@@ -2,12 +2,24 @@
 name = "mcp-forge"
 version = "0.3.0"
 edition = "2021"
-description = "A uvx-compatible CLI tool for managing Claude Desktop MCP server configurations"
-authors = ["Your Name <your.email@example.com>"]
+authors = ["Andy Cross <andy@crossmoore.io>"]
+description = "A powerful CLI tool for managing Claude Desktop MCP server configurations"
+readme = "README.md"
+homepage = "https://github.com/AndyCross/mcp-forge"
+repository = "https://github.com/AndyCross/mcp-forge"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/mcp-forge/mcp-forge"
-keywords = ["cli", "mcp", "claude", "configuration", "templates"]
-categories = ["command-line-utilities"]
+keywords = ["cli", "mcp", "claude", "desktop", "configuration"]
+categories = ["command-line-utilities", "development-tools"]
+exclude = [
+    "target/",
+    ".git/",
+    ".github/",
+    "docs/",
+    "packaging/",
+    "scripts/",
+    "*.log",
+    ".DS_Store"
+]
 
 [dependencies]
 # CLI framework
