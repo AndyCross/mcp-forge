@@ -17,9 +17,9 @@ pub struct TemplateRepository {
 impl Default for TemplateRepository {
     fn default() -> Self {
         Self {
-            owner: "modelcontextprotocol".to_string(),
-            repo: "servers".to_string(),
-            branch: "main".to_string(),
+            owner: "AndyCross".to_string(),
+            repo: "mcp-forge-templates".to_string(),
+            branch: "master".to_string(),
         }
     }
 }
@@ -93,9 +93,15 @@ impl GitHubClient {
 
     /// Fetch a specific template from GitHub
     pub async fn fetch_template(&self, template_name: &str) -> Result<Template> {
+        // First fetch the catalog to get the template path
+        let catalog = self.fetch_template_catalog().await?;
+        
+        let template_metadata = catalog.templates.get(template_name)
+            .ok_or_else(|| anyhow!("Template '{}' not found in catalog", template_name))?;
+        
         let url = format!(
-            "{}/repos/{}/{}/contents/templates/{}/template.json?ref={}",
-            self.base_url, self.repo.owner, self.repo.repo, template_name, self.repo.branch
+            "{}/repos/{}/{}/contents/{}?ref={}",
+            self.base_url, self.repo.owner, self.repo.repo, template_metadata.path, self.repo.branch
         );
 
         let response = self
@@ -171,9 +177,9 @@ mod tests {
     #[test]
     fn test_github_client_creation() {
         let client = GitHubClient::new();
-        assert_eq!(client.repo.owner, "modelcontextprotocol");
-        assert_eq!(client.repo.repo, "servers");
-        assert_eq!(client.repo.branch, "main");
+        assert_eq!(client.repo.owner, "AndyCross");
+        assert_eq!(client.repo.repo, "mcp-forge-templates");
+        assert_eq!(client.repo.branch, "master");
     }
 
     #[test]
