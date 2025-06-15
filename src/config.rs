@@ -1,11 +1,11 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs;
 use std::path::PathBuf;
+use tokio::fs;
 use crate::utils;
 
-/// Represents an individual MCP server configuration
+/// Represents an MCP server configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpServer {
     pub command: String,
@@ -47,7 +47,7 @@ impl Config {
             return Ok(Self::default());
         }
 
-        let content = fs::read_to_string(&config_path)
+        let content = fs::read_to_string(&config_path).await
             .with_context(|| format!("Failed to read config file: {}", config_path.display()))?;
 
         let config: Self = serde_json::from_str(&content)
@@ -66,14 +66,14 @@ impl Config {
 
         // Ensure parent directory exists
         if let Some(parent) = config_path.parent() {
-            fs::create_dir_all(parent)
+            fs::create_dir_all(parent).await
                 .with_context(|| format!("Failed to create config directory: {}", parent.display()))?;
         }
 
         let content = serde_json::to_string_pretty(self)
             .context("Failed to serialize configuration")?;
 
-        fs::write(&config_path, content)
+        fs::write(&config_path, content).await
             .with_context(|| format!("Failed to write config file: {}", config_path.display()))?;
 
         Ok(())
@@ -82,25 +82,15 @@ impl Config {
     /// Create a backup of the current configuration
     pub async fn create_backup(&self) -> Result<PathBuf> {
         let backup_dir = utils::get_backup_dir()?;
-        fs::create_dir_all(&backup_dir)?;
+        fs::create_dir_all(&backup_dir).await?;
 
         let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
         let backup_path = backup_dir.join(format!("config_backup_{}.json", timestamp));
 
         let content = serde_json::to_string_pretty(self)?;
-        fs::write(&backup_path, content)?;
+        fs::write(&backup_path, content).await?;
 
         Ok(backup_path)
-    }
-
-    /// Add or update an MCP server
-    pub fn add_server(&mut self, name: String, server: McpServer) {
-        self.mcp_servers.insert(name, server);
-    }
-
-    /// Remove an MCP server
-    pub fn remove_server(&mut self, name: &str) -> bool {
-        self.mcp_servers.remove(name).is_some()
     }
 
     /// Get a specific MCP server
@@ -134,35 +124,6 @@ impl ConfigManager {
         self.config = Config::load(self.profile.as_deref()).await?;
         Ok(())
     }
-
-    /// List all servers
-    pub fn list_servers(&self) -> Result<Vec<(String, McpServer)>> {
-        Ok(self.config.mcp_servers.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
-    }
-
-    /// Get a specific server
-    pub fn get_server(&self, name: &str) -> Result<Option<McpServer>> {
-        Ok(self.config.mcp_servers.get(name).cloned())
-    }
-
-    /// Add a server
-    pub async fn add_server(&mut self, name: String, server: McpServer) -> Result<()> {
-        self.config.add_server(name, server);
-        self.config.save(self.profile.as_deref()).await?;
-        Ok(())
-    }
-
-    /// Remove a server
-    pub async fn remove_server(&mut self, name: &str) -> Result<bool> {
-        let removed = self.config.remove_server(name);
-        self.config.save(self.profile.as_deref()).await?;
-        Ok(removed)
-    }
-
-    /// Create a backup
-    pub async fn create_backup(&self) -> Result<PathBuf> {
-        self.config.create_backup().await
-    }
 }
 
 #[cfg(test)]
@@ -191,23 +152,13 @@ mod tests {
 
     #[test]
     fn test_config_operations() {
-        let mut config = Config::default();
+        let config = Config::default();
         
-        let server = McpServer {
-            command: "test".to_string(),
-            args: vec!["arg1".to_string()],
-            env: None,
-            other: HashMap::new(),
-        };
-
-        // Test add
-        config.add_server("test1".to_string(), server.clone());
-        assert_eq!(config.list_servers().len(), 1);
-        assert!(config.get_server("test1").is_some());
-
-        // Test remove
-        assert!(config.remove_server("test1"));
-        assert!(!config.remove_server("nonexistent"));
-        assert_eq!(config.list_servers().len(), 0);
+        // Test that we can create and serialize configs
+        assert_eq!(config.mcp_servers.len(), 0);
+        
+        let json = serde_json::to_string_pretty(&config).unwrap();
+        let parsed: Config = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.mcp_servers.len(), 0);
     }
 } 

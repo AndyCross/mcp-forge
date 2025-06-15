@@ -407,21 +407,7 @@ fn validate_profile_name(name: &str) -> Result<()> {
     Ok(())
 }
 
-/// Update profile server count
-pub async fn update_profile_server_count(profile_name: Option<&str>) -> Result<()> {
-    if let Some(name) = profile_name {
-        let mut profile_config = load_profile_config().await?;
-        
-        if let Some(profile_info) = profile_config.profiles.get_mut(name) {
-            if let Ok(config) = Config::load(Some(name)).await {
-                profile_info.server_count = config.mcp_servers.len();
-                save_profile_config(&profile_config).await?;
-            }
-        }
-    }
-    
-    Ok(())
-}
+
 
 #[derive(Subcommand)]
 pub enum ProfileCommands {

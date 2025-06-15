@@ -271,102 +271,75 @@ impl TemplateManager {
         Ok(catalog)
     }
 
-    /// Apply template with variable substitution
+    /// Apply template variables to generate MCP server configuration
     pub fn apply_template(&self, template: &Template, variables: &HashMap<String, serde_json::Value>) -> Result<crate::config::McpServer> {
-        // Validate variables
+        // Validate variables first
         self.validate_variables(template, variables)?;
-        
-        // Create context for Handlebars
-        let mut context = variables.clone();
-        
-        // Add built-in variables
-        context.insert("os".to_string(), serde_json::Value::String(get_os_name()));
-        context.insert("arch".to_string(), serde_json::Value::String(get_arch_name()));
-        context.insert("home_dir".to_string(), serde_json::Value::String(get_home_dir()));
-        context.insert("config_dir".to_string(), serde_json::Value::String(get_config_dir()));
-        
+
+        // Create context for template rendering
+        let mut context = serde_json::Map::new();
+        for (key, value) in variables {
+            context.insert(key.clone(), value.clone());
+        }
+
         // Render command
         let command = self.handlebars.render_template(&template.config.command, &context)
-            .context("Failed to render template command")?;
-        
-        // Render args
-        let mut args = Vec::new();
-        for arg_template in &template.config.args {
-            let arg = self.handlebars.render_template(arg_template, &context)
-                .context("Failed to render template arg")?;
-            if !arg.trim().is_empty() {
-                args.push(arg);
-            }
+            .with_context(|| format!("Failed to render command template: {}", template.config.command))?;
+
+        // Render arguments
+        let mut rendered_args = Vec::new();
+        for arg in &template.config.args {
+            let rendered_arg = self.handlebars.render_template(arg, &context)
+                .with_context(|| format!("Failed to render argument template: {}", arg))?;
+            rendered_args.push(rendered_arg);
         }
-        
-        // Render environment variables
-        let env = if let Some(env_template) = &template.config.env {
-            let mut env_vars = HashMap::new();
-            for (key_template, value_template) in env_template {
-                let key = self.handlebars.render_template(key_template, &context)
-                    .context("Failed to render environment key")?;
-                let value = self.handlebars.render_template(value_template, &context)
-                    .context("Failed to render environment value")?;
+
+        // Render environment variables if present
+        let rendered_env = if let Some(env) = &template.config.env {
+            let mut rendered_env_map = HashMap::new();
+            for (key, value) in env {
+                let rendered_key = self.handlebars.render_template(key, &context)
+                    .with_context(|| format!("Failed to render environment key template: {}", key))?;
+                let rendered_value = self.handlebars.render_template(value, &context)
+                    .with_context(|| format!("Failed to render environment value template: {}", value))?;
                 
-                if !key.trim().is_empty() && !value.trim().is_empty() {
-                    env_vars.insert(key, value);
+                // Only add non-empty keys and values
+                if !rendered_key.trim().is_empty() && !rendered_value.trim().is_empty() {
+                    rendered_env_map.insert(rendered_key, rendered_value);
                 }
             }
-            if env_vars.is_empty() { None } else { Some(env_vars) }
+            if rendered_env_map.is_empty() { None } else { Some(rendered_env_map) }
         } else {
             None
         };
-        
+
         Ok(crate::config::McpServer {
             command,
-            args,
-            env,
+            args: rendered_args,
+            env: rendered_env,
             other: HashMap::new(),
         })
     }
 
     /// Validate template variables
     pub fn validate_variables(&self, template: &Template, variables: &HashMap<String, serde_json::Value>) -> Result<()> {
+        // Check required variables
         for (var_name, var_def) in &template.variables {
-            let value = variables.get(var_name);
-            
-            // Check required variables
-            if var_def.required && value.is_none() {
-                anyhow::bail!("Required variable '{}' is missing", var_name);
-            }
-            
-            if let Some(value) = value {
-                // Type validation
-                match var_def.var_type {
-                    VariableType::String => {
-                        if !value.is_string() {
-                            anyhow::bail!("Variable '{}' must be a string", var_name);
-                        }
-                    }
-                    VariableType::Boolean => {
-                        if !value.is_boolean() {
-                            anyhow::bail!("Variable '{}' must be a boolean", var_name);
-                        }
-                    }
-                    VariableType::Number => {
-                        if !value.is_number() {
-                            anyhow::bail!("Variable '{}' must be a number", var_name);
-                        }
-                    }
-                    VariableType::Array => {
-                        if !value.is_array() {
-                            anyhow::bail!("Variable '{}' must be an array", var_name);
-                        }
-                    }
-                    VariableType::Select => {
-                        if let Some(options) = &var_def.options {
-                            if let Some(str_val) = value.as_str() {
-                                if !options.contains(&str_val.to_string()) {
-                                    anyhow::bail!("Variable '{}' must be one of: {}", var_name, options.join(", "));
-                                }
-                            } else {
-                                anyhow::bail!("Variable '{}' must be a string for select type", var_name);
-                            }
+            if var_def.required {
+                if !variables.contains_key(var_name) {
+                    anyhow::bail!("Required variable '{}' is missing", var_name);
+                }
+                
+                let value = &variables[var_name];
+                if value.is_null() {
+                    anyhow::bail!("Required variable '{}' cannot be null", var_name);
+                }
+                
+                // For string variables, check if empty
+                if var_def.var_type == VariableType::String {
+                    if let Some(str_val) = value.as_str() {
+                        if str_val.trim().is_empty() {
+                            anyhow::bail!("Required variable '{}' cannot be empty", var_name);
                         }
                     }
                 }
@@ -374,34 +347,6 @@ impl TemplateManager {
         }
         
         Ok(())
-    }
-
-    /// Validate template format
-    pub fn validate_template(&self, template_content: &str) -> Result<Template> {
-        let template: Template = serde_json::from_str(template_content)
-            .context("Invalid template JSON format")?;
-        
-        // Basic validation
-        if template.name.is_empty() {
-            anyhow::bail!("Template name cannot be empty");
-        }
-        
-        if template.config.command.is_empty() {
-            anyhow::bail!("Template command cannot be empty");
-        }
-        
-        // Validate variable definitions
-        for (var_name, var_def) in &template.variables {
-            if var_name.is_empty() {
-                anyhow::bail!("Variable name cannot be empty");
-            }
-            
-            if var_def.var_type == VariableType::Select && var_def.options.is_none() {
-                anyhow::bail!("Select variable '{}' must have options", var_name);
-            }
-        }
-        
-        Ok(template)
     }
 
     /// Refresh template cache
@@ -518,7 +463,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_template_validation() {
+    fn test_template_serialization() {
         let template_json = r#"
         {
             "name": "test-template",
@@ -541,8 +486,7 @@ mod tests {
         }
         "#;
         
-        let manager = TemplateManager::new().unwrap();
-        let template = manager.validate_template(template_json).unwrap();
+        let template: Template = serde_json::from_str(template_json).unwrap();
         assert_eq!(template.name, "test-template");
         assert_eq!(template.variables.len(), 1);
     }
