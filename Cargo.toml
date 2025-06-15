@@ -1,6 +1,6 @@
 [package]
 name = "mcp-forge"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 authors = ["Andy Cross <andy@crossmoore.io>"]
 description = "A powerful CLI tool for managing Claude Desktop MCP server configurations"
@@ -8,7 +8,7 @@ readme = "README.md"
 homepage = "https://github.com/AndyCross/mcp-forge"
 repository = "https://github.com/AndyCross/mcp-forge"
 license = "MIT OR Apache-2.0"
-keywords = ["cli", "mcp", "claude", "desktop", "configuration"]
+keywords = ["claude", "mcp", "cli", "configuration", "desktop"]
 categories = ["command-line-utilities", "development-tools"]
 exclude = [
     "target/",

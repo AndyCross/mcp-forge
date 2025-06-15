@@ -8,13 +8,14 @@
 
 MCP-Forge is a comprehensive command-line tool designed to streamline the management of Model Context Protocol (MCP) servers in Claude Desktop. From basic server management to advanced enterprise features like bulk operations, configuration validation, and profile management.
 
-## 🆕 Recent Updates (v0.3.1)
+## 🆕 Recent Updates (v0.3.2)
 
+- **🛠️ Development Tools**: Added Makefile with common development tasks and automated version management
+- **🔄 Version Automation**: Automated version synchronization across all packaging files
+- **🤖 CI/CD Enhancement**: GitHub Actions automatically update packaging on releases
 - **🧹 Code Quality**: Eliminated all build warnings and cleaned up 600+ lines of dead code
 - **📦 Template Repository**: Moved templates to separate repository for better management
-- **🔧 CI/CD Improvements**: Updated GitHub Actions for reliable releases
 - **✅ Enhanced Testing**: All 25 unit tests passing with comprehensive coverage
-- **🚀 Performance**: Improved code patterns and reduced binary size
 
 ## ✨ Features
 
@@ -647,6 +648,62 @@ cargo test
 # Run with debug logging
 RUST_LOG=debug cargo run -- --help
 ```
+
+### Development Tools
+
+MCP-Forge includes a comprehensive set of development tools to streamline the development workflow:
+
+#### Makefile Commands
+
+```bash
+# Show all available commands
+make help
+
+# Build the project
+make build
+
+# Run all tests
+make test
+
+# Run formatting and clippy checks
+make check
+
+# Full development workflow (build, test, check)
+make dev
+
+# Check version consistency across all files
+make check-version
+
+# Update all packaging files to match Cargo.toml version
+make update-version
+
+# Full release workflow (check, test, build, update versions)
+make release
+```
+
+#### Version Management
+
+The project includes automated version management to keep all packaging files in sync:
+
+```bash
+# Check if versions are consistent
+make check-version
+
+# Update packaging files after changing Cargo.toml version
+make update-version
+
+# Manual script (alternative to make commands)
+./scripts/update-version.sh
+```
+
+#### Automated CI/CD
+
+- **GitHub Actions**: Automatically update packaging files when releases are created
+- **Quality Checks**: All PRs run formatting, clippy, and test checks
+- **Binary Builds**: Automatic cross-platform binary builds on releases
+- **Template Repository**: Separate repository for community template contributions
+
+See [Version Management Documentation](docs/version-management.md) for detailed information.
 
 ### Template Development
 

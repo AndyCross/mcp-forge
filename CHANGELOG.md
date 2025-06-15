@@ -12,6 +12,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Contributing guidelines
 - Development setup instructions
 
+## [0.3.2] - 2024-12-15 - Development Tools & Automation
+
+### Added
+- **Development Tools & Automation**
+  - Comprehensive Makefile with common development tasks
+  - Automated version management across all packaging files
+  - Version consistency checking and validation
+  - Development workflow automation (build, test, check, release)
+
+- **CI/CD Enhancements**
+  - GitHub Actions workflow for automatic packaging file updates
+  - Automated version synchronization on releases
+  - Enhanced release pipeline with version management
+  - Cross-platform binary build improvements
+
+- **Version Management System**
+  - `scripts/update-version.sh` - Automated version synchronization script
+  - Version consistency validation across Cargo.toml, Scoop, and Homebrew
+  - Automated packaging file updates on release creation
+  - Developer-friendly version management commands
+
+- **Documentation Improvements**
+  - Comprehensive version management documentation
+  - Development tools usage guide
+  - Enhanced README with development workflow
+  - Makefile command reference
+
+### Enhanced
+- **Developer Experience**
+  - Streamlined development workflow with make commands
+  - Automated quality checks (formatting, clippy, tests)
+  - One-command release preparation
+  - Reduced manual overhead for version management
+
+- **Release Process**
+  - Automated packaging file updates via GitHub Actions
+  - Version consistency enforcement
+  - Simplified release workflow
+  - Better release documentation
+
+### Technical
+- **New Files**
+  - `Makefile` - Development task automation
+  - `scripts/update-version.sh` - Version synchronization script
+  - `.github/workflows/update-packaging.yml` - Automated packaging updates
+  - `docs/version-management.md` - Version management documentation
+
+- **Build System**
+  - Make-based development workflow
+  - Automated version management
+  - Enhanced CI/CD pipeline
+  - Cross-platform compatibility maintained
+
+### Developer Notes
+- Use `make help` to see all available development commands
+- Version updates now automatically sync across all packaging files
+- GitHub Actions will update packaging files when releases are created
+- See `docs/version-management.md` for detailed workflow information
+
 ## [0.3.1] - 2024-12-15 - Code Quality & Template Repository
 
 ### Added
