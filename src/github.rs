@@ -95,13 +95,19 @@ impl GitHubClient {
     pub async fn fetch_template(&self, template_name: &str) -> Result<Template> {
         // First fetch the catalog to get the template path
         let catalog = self.fetch_template_catalog().await?;
-        
-        let template_metadata = catalog.templates.get(template_name)
+
+        let template_metadata = catalog
+            .templates
+            .get(template_name)
             .ok_or_else(|| anyhow!("Template '{}' not found in catalog", template_name))?;
-        
+
         let url = format!(
             "{}/repos/{}/{}/contents/{}?ref={}",
-            self.base_url, self.repo.owner, self.repo.repo, template_metadata.path, self.repo.branch
+            self.base_url,
+            self.repo.owner,
+            self.repo.repo,
+            template_metadata.path,
+            self.repo.branch
         );
 
         let response = self
