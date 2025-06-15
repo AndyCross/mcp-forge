@@ -1,0 +1,182 @@
+name: 📝 Template Contribution
+description: Contribute a new MCP server template
+title: "[Template]: "
+labels: ["template", "community", "needs-review"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for contributing a new template! Community templates help make MCP-Forge more useful for everyone.
+
+  - type: input
+    id: template-name
+    attributes:
+      label: Template Name
+      description: What should this template be called?
+      placeholder: "e.g., postgresql, redis, docker, etc."
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Template Description
+      description: What does this template do?
+      placeholder: "Brief description of the MCP server this template configures"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Template Category
+      description: What category does this template belong to?
+      options:
+        - Database
+        - File System
+        - API Integration
+        - Development Tools
+        - System Utilities
+        - Cloud Services
+        - AI/ML Services
+        - Communication
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: server-info
+    attributes:
+      label: MCP Server Information
+      description: Information about the underlying MCP server
+      placeholder: |
+        - Server repository: https://github.com/...
+        - Server documentation: https://...
+        - Installation requirements: npm install, pip install, etc.
+        - Supported platforms: Windows, macOS, Linux
+    validations:
+      required: true
+
+  - type: textarea
+    id: template-json
+    attributes:
+      label: Template JSON
+      description: Paste your complete template JSON here
+      placeholder: |
+        {
+          "name": "template-name",
+          "version": "1.0.0",
+          "description": "Template description",
+          "author": "Your Name",
+          "tags": ["category"],
+          "platforms": ["windows", "macos", "linux"],
+          "variables": {
+            "variable_name": {
+              "type": "string",
+              "description": "Variable description",
+              "required": true
+            }
+          },
+          "config": {
+            "command": "command-to-run",
+            "args": ["--arg", "{{variable_name}}"]
+          },
+          "requirements": {
+            "nodejs": ">=18.0.0"
+          },
+          "setup_instructions": "Step-by-step setup instructions"
+        }
+      render: json
+    validations:
+      required: true
+
+  - type: textarea
+    id: variables
+    attributes:
+      label: Template Variables
+      description: Explain each variable and how to obtain the values
+      placeholder: |
+        - `api_key`: Your API key from the service (get it from https://...)
+        - `database_url`: Connection string for your database
+        - `timeout`: Request timeout in seconds (default: 30)
+    validations:
+      required: true
+
+  - type: textarea
+    id: setup-instructions
+    attributes:
+      label: Setup Instructions
+      description: Step-by-step instructions for users
+      placeholder: |
+        1. Install the MCP server: `npm install -g server-package`
+        2. Get your API key from https://...
+        3. Add the server: `mcp-forge add my-server template-name --vars "api_key=your_key"`
+        4. Test the configuration: `mcp-forge validate my-server`
+
+  - type: textarea
+    id: testing
+    attributes:
+      label: Testing Information
+      description: How did you test this template?
+      placeholder: |
+        - Platforms tested: macOS, Windows, Linux
+        - MCP server version: 1.2.3
+        - Test scenarios: basic functionality, error handling, etc.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: platforms
+    attributes:
+      label: Platform Support
+      description: Which platforms have you tested this template on?
+      options:
+        - label: Windows
+        - label: macOS (Intel)
+        - label: macOS (Apple Silicon)
+        - label: Linux (Ubuntu/Debian)
+        - label: Linux (Other distributions)
+
+  - type: checkboxes
+    id: requirements
+    attributes:
+      label: Requirements Check
+      description: Please confirm your template meets these requirements
+      options:
+        - label: Template follows the JSON schema
+          required: true
+        - label: All variables have clear descriptions
+          required: true
+        - label: Setup instructions are complete and tested
+          required: true
+        - label: Template works with the latest MCP server version
+          required: true
+        - label: No hardcoded secrets or sensitive information
+          required: true
+
+  - type: textarea
+    id: additional-notes
+    attributes:
+      label: Additional Notes
+      description: Any additional information about this template
+      placeholder: |
+        - Known limitations
+        - Future improvements planned
+        - Related templates or dependencies
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Contribution Checklist
+      description: Please confirm the following
+      options:
+        - label: I have tested this template thoroughly
+          required: true
+        - label: I have provided complete setup instructions
+          required: true
+        - label: I agree to maintain this template or transfer ownership if needed
+          required: true
+        - label: This template adds value to the community
+          required: true 

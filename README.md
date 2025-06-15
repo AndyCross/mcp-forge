@@ -52,7 +52,7 @@ MCP-Forge is a comprehensive command-line tool designed to streamline the manage
 
 #### From Source (Recommended)
 ```bash
-git clone https://github.com/yourusername/mcp-forge.git
+git clone https://github.com/AndyCross/mcp-forge.git
 cd mcp-forge
 cargo build --release
 ./target/release/mcp-forge --help
@@ -566,7 +566,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/mcp-forge.git
+git clone https://github.com/AndyCross/mcp-forge.git
 cd mcp-forge
 
 # Install dependencies

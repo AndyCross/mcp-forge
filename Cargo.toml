@@ -62,3 +62,12 @@ env_logger = "0.10"
 tempfile = "3.8"
 assert_cmd = "2.0"
 predicates = "3.0"
+
+# Optimized release profile for distribution
+[profile.release-optimized]
+inherits = "release"
+opt-level = "z"          # Optimize for size
+lto = true               # Enable Link Time Optimization
+codegen-units = 1        # Better optimization
+panic = "abort"          # Smaller binary size
+strip = true             # Strip symbols
