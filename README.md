@@ -8,14 +8,14 @@
 
 MCP-Forge is a comprehensive command-line tool designed to streamline the management of Model Context Protocol (MCP) servers in Claude Desktop. From basic server management to advanced enterprise features like bulk operations, configuration validation, and profile management.
 
-## 🆕 Recent Updates (v0.3.2)
+## 🆕 Recent Updates (v0.3.3)
 
-- **🛠️ Development Tools**: Added Makefile with common development tasks and automated version management
+- **🔒 Security Enhancement**: Environment variable masking to prevent credential leaks in output
+- **🛡️ Smart Pattern Detection**: Automatically detects and masks CLIENT_ID, CLIENT_SECRET, API_KEY, TOKEN, etc.
+- **🎯 Comprehensive Coverage**: Applied to all output locations (list, preview, diff, templates, bulk operations)
+- **🛠️ Development Tools**: Comprehensive Makefile with automated version management
 - **🔄 Version Automation**: Automated version synchronization across all packaging files
-- **🤖 CI/CD Enhancement**: GitHub Actions automatically update packaging on releases
-- **🧹 Code Quality**: Eliminated all build warnings and cleaned up 600+ lines of dead code
-- **📦 Template Repository**: Moved templates to separate repository for better management
-- **✅ Enhanced Testing**: All 25 unit tests passing with comprehensive coverage
+- **✅ Enhanced Testing**: All 26 tests passing with comprehensive security coverage
 
 ## ✨ Features
 

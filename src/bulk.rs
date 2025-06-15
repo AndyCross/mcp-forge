@@ -410,7 +410,10 @@ fn preview_update_server(
 
     let changes: Vec<String> = env_updates
         .iter()
-        .map(|(key, value)| format!("{}={}", key, value))
+        .map(|(key, value)| {
+            let masked_value = crate::utils::mask_sensitive_env_value(key, value);
+            format!("{}={}", key, masked_value)
+        })
         .collect();
 
     BulkOperationResult {

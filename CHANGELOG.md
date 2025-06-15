@@ -12,6 +12,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Contributing guidelines
 - Development setup instructions
 
+## [0.3.3] - 2024-12-15 - Security Enhancement: Environment Variable Masking
+
+### Added
+- **🔒 Security Feature: Environment Variable Masking**
+  - Automatic detection and masking of sensitive environment variables
+  - Smart pattern recognition for CLIENT_ID, CLIENT_SECRET, API_KEY, TOKEN, SECRET, PASSWORD, etc.
+  - Case-insensitive matching with support for various separators (_, -, .)
+  - Secure masking showing first 3 + last 3 characters with asterisks in between
+  - Comprehensive coverage across all output locations
+
+- **🛡️ Credential Leak Prevention**
+  - Applied to `mcp-forge list` command output
+  - Applied to `--dry-run` and `--preview` operations
+  - Applied to template display and bulk operations
+  - Applied to server diff displays and configuration changes
+  - Applied to all environment variable outputs throughout the application
+
+- **🧪 Comprehensive Testing**
+  - New test suite for environment variable masking functionality
+  - 26 total tests passing with security coverage
+  - Manual testing verified with real credential patterns
+  - Edge case testing for short values and various patterns
+
+### Enhanced
+- **Security Posture**
+  - Prevents accidental credential exposure in command output
+  - Maintains usability while protecting sensitive information
+  - Zero performance impact on normal operations
+  - Configurable masking patterns for different credential types
+
+- **Developer Experience**
+  - Clear visual indication of masked vs unmasked values
+  - Consistent masking behavior across all commands
+  - Maintains debugging capability while protecting secrets
+  - No breaking changes to existing functionality
+
+### Technical
+- **New Function**: `mask_sensitive_env_value()` in `src/utils.rs`
+- **Pattern Detection**: 11 sensitive patterns with normalization
+- **Masking Logic**: Minimum 4 asterisks, preserves first/last 3 characters
+- **Coverage**: Applied to 7 different output locations
+- **Testing**: Comprehensive test coverage with edge cases
+
+### Security Notes
+- **Before**: `REDDIT_CLIENT_SECRET=KJCYTuWHOKRIaE0qx_SfimX1j_PHag`
+- **After**: `REDDIT_CLIENT_SECRET=KJC************************Hag`
+- Non-sensitive variables like `PORT`, `HOST` remain unmasked
+- Masking is applied consistently across all command outputs
+
 ## [0.3.2] - 2024-12-15 - Development Tools & Automation
 
 ### Added

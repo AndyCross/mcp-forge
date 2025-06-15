@@ -538,7 +538,8 @@ async fn preview_add_operation(
         if !env.is_empty() {
             println!("  Environment:");
             for (key, value) in env {
-                println!("    {}={}", key, value);
+                let masked_value = crate::utils::mask_sensitive_env_value(key, value);
+                println!("    {}={}", key, masked_value);
             }
         }
     }
@@ -586,7 +587,8 @@ async fn preview_update_operation(
             if !env_updates.is_empty() {
                 println!("  Environment updates:");
                 for (key, value) in env_updates {
-                    println!("    {}={}", key.cyan(), value.cyan());
+                    let masked_value = crate::utils::mask_sensitive_env_value(key, value);
+                    println!("    {}={}", key.cyan(), masked_value.cyan());
                 }
             }
 
@@ -626,7 +628,8 @@ async fn show_server_diff(old: &McpServer, new: &McpServer, name: &str) -> Resul
         // Show removed variables
         for (key, value) in old_env {
             if !new_env.contains_key(key) {
-                println!("    {} {}: {}", "-".red(), key.red(), value.red());
+                let masked_value = crate::utils::mask_sensitive_env_value(key, value);
+                println!("    {} {}: {}", "-".red(), key.red(), masked_value.red());
             }
         }
 
@@ -634,16 +637,24 @@ async fn show_server_diff(old: &McpServer, new: &McpServer, name: &str) -> Resul
         for (key, value) in new_env {
             if let Some(old_value) = old_env.get(key) {
                 if old_value != value {
+                    let masked_old = crate::utils::mask_sensitive_env_value(key, old_value);
+                    let masked_new = crate::utils::mask_sensitive_env_value(key, value);
                     println!(
                         "    {} {}: {} → {}",
                         "~".yellow(),
                         key,
-                        old_value.red(),
-                        value.green()
+                        masked_old.red(),
+                        masked_new.green()
                     );
                 }
             } else {
-                println!("    {} {}: {}", "+".green(), key.green(), value.green());
+                let masked_value = crate::utils::mask_sensitive_env_value(key, value);
+                println!(
+                    "    {} {}: {}",
+                    "+".green(),
+                    key.green(),
+                    masked_value.green()
+                );
             }
         }
     }
@@ -838,7 +849,8 @@ async fn handle_template_show(name: String) -> Result<()> {
         if !env.is_empty() {
             println!("Environment:");
             for (key, value) in env {
-                println!("  {}={}", key, value);
+                let masked_value = crate::utils::mask_sensitive_env_value(key, value);
+                println!("  {}={}", key, masked_value);
             }
         }
     }

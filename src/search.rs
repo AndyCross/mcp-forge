@@ -248,7 +248,8 @@ fn format_as_default(servers: &[ServerInfo], options: &ListOptions) -> String {
             if !env.is_empty() {
                 output.push_str("  Environment:\n");
                 for (key, value) in env {
-                    output.push_str(&format!("    {}={}\n", key, value));
+                    let masked_value = crate::utils::mask_sensitive_env_value(key, value);
+                    output.push_str(&format!("    {}={}\n", key, masked_value));
                 }
             }
         }
