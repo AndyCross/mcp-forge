@@ -12,6 +12,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Contributing guidelines
 - Development setup instructions
 
+## [0.5.1] - 2025-01-16 - Security Fix: Config Show Credential Masking
+
+### 🔒 Security Fix
+- **CRITICAL**: Fixed credential exposure in `mcp-forge config show` command
+- Added automatic masking of sensitive environment variables in JSON output
+- Ensures consistent credential protection across all commands (`list`, `config show`, etc.)
+
+### 🐛 Bug Fix
+- `config show` command now properly masks CLIENT_ID, CLIENT_SECRET, API_KEY, and other sensitive values
+- Maintains same masking behavior as `list` command for consistency
+- Prevents accidental credential leaks when sharing configuration output
+
+### 🔧 Technical Details
+- Added `mask_config_credentials()` function to safely display configuration
+- Applied existing `mask_sensitive_env_value()` utility to config show output
+- Maintains full functionality while protecting sensitive information
+
+### 📋 Before/After
+**Before (UNSAFE):**
+```json
+"env": {
+  "REDDIT_CLIENT_SECRET": "KJCYTuWHOKRIaE0qx_SfimX1j_PHag",
+  "REDDIT_CLIENT_ID": "LgAqzbS6oL-60HwSULGzrA"
+}
+```
+
+**After (SAFE):**
+```json
+"env": {
+  "REDDIT_CLIENT_SECRET": "KJC************************Hag",
+  "REDDIT_CLIENT_ID": "LgA****************zrA"
+}
+```
+
+This is a critical security fix that should be applied immediately to prevent credential exposure.
+
 ## [0.5.0] - 2025-01-16 - Profile System Redesign: True Claude Desktop Integration
 
 ### 🚀 Major Changes

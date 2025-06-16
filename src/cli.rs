@@ -39,7 +39,8 @@ pub async fn handle_config_command(action: ConfigCommands, profile: Option<Strin
     match action {
         ConfigCommands::Show => {
             let config = Config::load(profile.as_deref()).await?;
-            println!("{}", serde_json::to_string_pretty(&config)?);
+            let masked_config = mask_config_credentials(&config);
+            println!("{}", serde_json::to_string_pretty(&masked_config)?);
         }
         ConfigCommands::Validate { deep, requirements } => {
             crate::validation::validate_config(deep, requirements, None, profile).await?
@@ -141,6 +142,22 @@ async fn prompt_for_template_variables(
     }
 
     Ok(values)
+}
+
+/// Create a masked version of the config for safe display
+fn mask_config_credentials(config: &Config) -> Config {
+    let mut masked_config = config.clone();
+    
+    // Mask environment variables in all servers
+    for (_, server) in masked_config.mcp_servers.iter_mut() {
+        if let Some(env) = &mut server.env {
+            for (key, value) in env.iter_mut() {
+                *value = utils::mask_sensitive_env_value(key, value);
+            }
+        }
+    }
+    
+    masked_config
 }
 
 /// Parse variables from string format
