@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::profiles::update_profile_server_count;
 use crate::utils;
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Duration, Utc};
@@ -411,12 +412,20 @@ async fn restore_single_server(
         .insert(server_name.to_string(), server.clone());
 
     current_config.save(profile).await?;
+
+    // Update profile metadata
+    update_profile_server_count(profile).await?;
+
     Ok(())
 }
 
 /// Restore full configuration
 async fn restore_full_config(backup_config: &Config, profile: Option<&str>) -> Result<()> {
     backup_config.save(profile).await?;
+
+    // Update profile metadata
+    update_profile_server_count(profile).await?;
+
     Ok(())
 }
 

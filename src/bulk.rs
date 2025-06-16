@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::profiles::update_profile_server_count;
 use crate::templates::TemplateManager;
 use anyhow::{anyhow, Result};
 use clap::Subcommand;
@@ -81,6 +82,10 @@ async fn handle_bulk_add(file_path: String, dry_run: bool, profile: Option<Strin
         let success_count = results.iter().filter(|r| r.success).count();
         if success_count > 0 {
             config.save(profile.as_deref()).await?;
+
+            // Update profile metadata
+            update_profile_server_count(profile.as_deref()).await?;
+
             println!();
             println!(
                 "{}",
@@ -141,6 +146,10 @@ async fn handle_bulk_update(
         let success_count = results.iter().filter(|r| r.success).count();
         if success_count > 0 {
             config.save(profile.as_deref()).await?;
+
+            // Update profile metadata
+            update_profile_server_count(profile.as_deref()).await?;
+
             println!();
             println!(
                 "{}",
@@ -213,6 +222,10 @@ async fn handle_bulk_remove(
 
         if removed_count > 0 {
             config.save(profile.as_deref()).await?;
+
+            // Update profile metadata
+            update_profile_server_count(profile.as_deref()).await?;
+
             println!();
             println!(
                 "{}",

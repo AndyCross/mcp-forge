@@ -12,6 +12,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Contributing guidelines
 - Development setup instructions
 
+## [0.4.1] - 2025-01-16 - Profile System Consistency Fix
+
+### Fixed
+- **🔧 Profile Server Count Synchronization**
+  - Fixed inconsistency where profile metadata showed incorrect server counts
+  - Profile metadata now automatically updates when servers are added, removed, or modified
+  - All server operations (add, remove, edit, update, bulk, backup restore, import) now update profile metadata
+  - Resolved issue where `mcp-forge list` showed different server counts than `mcp-forge profile current`
+
+- **🎯 Automatic Profile Detection**
+  - Commands now automatically use the current active profile when no `--profile` parameter is specified
+  - Fixed issue where operations were incorrectly using default configuration instead of active profile
+  - Enhanced `Config::load()` and `Config::save()` to detect current profile automatically
+  - Improved user experience by eliminating need to specify `--profile` for every command
+
+### Enhanced
+- **Profile System Reliability**
+  - All profile metadata fields (server_count, last_used) now stay synchronized
+  - Profile switching and syncing operations maintain accurate metadata
+  - Consistent behavior across all commands and operations
+  - Better error handling for profile-related operations
+
+### Technical
+- **New Functions**
+  - `get_current_profile()` - Automatically detects active profile from profiles.json
+  - `update_profile_server_count()` - Updates profile metadata after server modifications
+  - Enhanced profile auto-detection in Config::load() and Config::save()
+
+- **Updated Operations**
+  - All CLI commands (add, remove, edit, update) now update profile metadata
+  - All bulk operations maintain profile consistency
+  - Backup restore operations update profile metadata
+  - Import/export operations respect profile system
+
+### Bug Fixes
+- Fixed server count discrepancies between profile metadata and actual configuration
+- Fixed commands using wrong configuration when profile is active
+- Fixed profile sync not updating target profile metadata
+- Fixed bulk operations not updating profile metadata
+
+### Testing
+- All 28 tests continue to pass
+- Added comprehensive testing for profile consistency
+- Verified fix with real-world usage scenarios
+- No breaking changes or regressions introduced
+
 ## [0.4.0] - 2025-01-16 - Profile Management & Search Improvements
 
 ### Added

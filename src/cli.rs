@@ -1,5 +1,6 @@
 use crate::config::{Config, ConfigManager, McpServer};
 use crate::github::GitHubClient;
+use crate::profiles::update_profile_server_count;
 use crate::search::{filter_servers, format_servers, rank_templates, ListOptions, SearchCriteria};
 use crate::templates::{TemplateManager, VariableType};
 use crate::utils;
@@ -259,6 +260,9 @@ pub async fn handle_enhanced_add(
     config.mcp_servers.insert(name.clone(), server);
     config.save(profile.as_deref()).await?;
 
+    // Update profile metadata
+    update_profile_server_count(profile.as_deref()).await?;
+
     println!(
         "{}",
         format!("✓ Server '{}' added successfully", name).green()
@@ -352,6 +356,10 @@ pub async fn handle_enhanced_remove(
     }
 
     config.save(profile.as_deref()).await?;
+
+    // Update profile metadata
+    update_profile_server_count(profile.as_deref()).await?;
+
     println!();
     println!(
         "{}",
@@ -408,6 +416,9 @@ pub async fn handle_enhanced_edit(
     // Update server
     config.mcp_servers.insert(name.clone(), edited_server);
     config.save(profile.as_deref()).await?;
+
+    // Update profile metadata
+    update_profile_server_count(profile.as_deref()).await?;
 
     println!(
         "{}",
@@ -496,6 +507,10 @@ pub async fn handle_enhanced_update(
     }
 
     config.save(profile.as_deref()).await?;
+
+    // Update profile metadata
+    update_profile_server_count(profile.as_deref()).await?;
+
     println!();
     println!(
         "{}",
@@ -972,11 +987,19 @@ pub async fn handle_import(
     if replace {
         // Replace entire configuration
         config.save(profile.as_deref()).await?;
+
+        // Update profile metadata
+        update_profile_server_count(profile.as_deref()).await?;
+
         println!("✅ Configuration replaced from: {}", file);
     } else if merge {
         // Merge configurations
         let merged = merge_configs(&current_config, &config)?;
         merged.save(profile.as_deref()).await?;
+
+        // Update profile metadata
+        update_profile_server_count(profile.as_deref()).await?;
+
         println!("✅ Configuration merged from: {}", file);
     } else {
         // Default behavior - show what would be done
@@ -990,6 +1013,10 @@ pub async fn handle_import(
         if confirm {
             let merged = merge_configs(&current_config, &config)?;
             merged.save(profile.as_deref()).await?;
+
+            // Update profile metadata
+            update_profile_server_count(profile.as_deref()).await?;
+
             println!("✅ Configuration imported from: {}", file);
         }
     }

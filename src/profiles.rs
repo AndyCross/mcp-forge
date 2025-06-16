@@ -25,6 +25,31 @@ pub struct ProfileConfig {
     pub profiles: HashMap<String, ProfileInfo>,
 }
 
+/// Update profile metadata with current server count
+/// This should be called whenever servers are added, removed, or modified
+pub async fn update_profile_server_count(profile_name: Option<&str>) -> Result<()> {
+    // If no profile specified, check if there's a current profile
+    let effective_profile = if profile_name.is_none() {
+        let profile_config = load_profile_config().await?;
+        profile_config.current_profile
+    } else {
+        profile_name.map(|s| s.to_string())
+    };
+
+    // Only update if we're working with a named profile (not default)
+    if let Some(profile) = effective_profile.as_deref() {
+        let config = Config::load(Some(profile)).await?;
+        let mut profile_config = load_profile_config().await?;
+
+        if let Some(profile_info) = profile_config.profiles.get_mut(profile) {
+            profile_info.server_count = config.mcp_servers.len();
+            profile_info.last_used = Some(chrono::Utc::now());
+            save_profile_config(&profile_config).await?;
+        }
+    }
+    Ok(())
+}
+
 /// Handle profile command routing
 pub async fn handle_profile_command(action: ProfileCommands) -> Result<()> {
     match action {
@@ -231,6 +256,9 @@ async fn handle_profile_sync(from: String, to: String, dry_run: bool) -> Result<
 
     // Copy the entire configuration
     source_config.save(Some(&to)).await?;
+
+    // Update profile metadata with new server count
+    update_profile_server_count(Some(&to)).await?;
 
     println!("{}", "✓ Configuration synced successfully".green());
     println!("  Servers copied: {}", source_config.mcp_servers.len());
