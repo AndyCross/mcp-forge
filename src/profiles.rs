@@ -222,7 +222,11 @@ async fn handle_profile_sync(from: String, to: String, dry_run: bool) -> Result<
 
     println!(
         "{}",
-        format!("Syncing configuration from '{}' to '{}'...", from_display_name, to).cyan()
+        format!(
+            "Syncing configuration from '{}' to '{}'...",
+            from_display_name, to
+        )
+        .cyan()
     );
 
     // Copy the entire configuration
@@ -512,13 +516,13 @@ mod tests {
     fn test_default_profile_sync_logic() {
         // Test that "default" is handled as a special case in sync operations
         // This is a unit test for the logic, not the full async function
-        
+
         // The key insight is that "default" should be treated specially
         // and not validated as a regular profile name in sync context
         let from = "default";
         let is_default_source = from == "default";
         assert!(is_default_source);
-        
+
         // Regular profile names should not be treated as default
         let from_regular = "production";
         let is_regular_source = from_regular == "default";

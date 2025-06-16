@@ -12,6 +12,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Contributing guidelines
 - Development setup instructions
 
+## [0.4.0] - 2025-01-16 - Profile Management & Search Improvements
+
+### Added
+- **🔄 Default Profile Sync Support**
+  - New `mcp-forge profile sync default <profile>` command
+  - Enables migration from default configuration to profile-based approach
+  - Perfect for users adopting profile workflows after initial setup
+  - Supports dry-run preview with `--dry-run` flag
+  - Comprehensive error handling and validation
+
+- **🎯 Enhanced Template Search**
+  - Improved search ranking to show only matching templates
+  - Exact matches now return only the relevant template
+  - Eliminated irrelevant results cluttering search output
+  - Better search experience with focused, relevant results
+  - Maintained support for partial matches and description searches
+
+### Enhanced
+- **Profile Management Workflow**
+  - Seamless migration path from default to profile-based configuration
+  - Clear documentation and help text for new sync functionality
+  - Maintains backward compatibility with existing profile operations
+  - Enhanced user experience for profile adoption
+
+- **Search User Experience**
+  - More intuitive search results with better relevance filtering
+  - Faster template discovery with focused results
+  - Improved search performance by filtering non-matching templates
+  - Better ranking algorithm for template suggestions
+
+### Technical
+- **Profile Sync Implementation**
+  - Special handling for "default" keyword in sync operations
+  - Loads main Claude Desktop configuration when syncing from default
+  - Maintains existing validation for regular profile names
+  - Added comprehensive test coverage for new functionality
+
+- **Search Algorithm Improvements**
+  - Added relevance score filtering (> 0.0) to exclude non-matches
+  - Improved template ranking with better score calculation
+  - Enhanced search result ordering and presentation
+  - Maintained existing search functionality for broader queries
+
+### Usage Examples
+```bash
+# Migrate from default to profile-based approach
+mcp-forge profile create development
+mcp-forge profile sync default development --dry-run  # Preview
+mcp-forge profile sync default development            # Execute
+mcp-forge profile switch development
+
+# Better template search experience
+mcp-forge template search rightmove    # Returns only rightmove template
+mcp-forge template search database     # Returns postgres + sqlite
+```
+
+### Developer Notes
+- Added test coverage for default profile sync logic
+- Updated help documentation to clarify "default" usage
+- Maintained all existing functionality and backward compatibility
+- Enhanced error messages for better user guidance
+
 ## [0.3.3] - 2024-12-15 - Security Enhancement: Environment Variable Masking
 
 ### Added

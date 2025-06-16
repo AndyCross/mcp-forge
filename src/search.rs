@@ -553,7 +553,7 @@ mod tests {
     #[test]
     fn test_rank_templates_filters_non_matching() {
         use crate::templates::TemplateMetadata;
-        
+
         let templates = vec![
             TemplateMetadata {
                 name: "rightmove".to_string(),
