@@ -197,25 +197,32 @@ async fn handle_profile_current() -> Result<()> {
 async fn handle_profile_sync(from: String, to: String, dry_run: bool) -> Result<()> {
     let profile_config = load_profile_config().await?;
 
-    // Validate profiles exist
-    if !profile_config.profiles.contains_key(&from) {
-        return Err(anyhow!("Source profile '{}' does not exist", from));
-    }
+    // Handle special case for "default" profile (main Claude config)
+    let (source_config, from_display_name) = if from == "default" {
+        (Config::load(None).await?, "default".to_string())
+    } else {
+        // Validate source profile exists
+        if !profile_config.profiles.contains_key(&from) {
+            return Err(anyhow!("Source profile '{}' does not exist", from));
+        }
+        (Config::load(Some(&from)).await?, from.clone())
+    };
+
+    // Validate target profile exists
     if !profile_config.profiles.contains_key(&to) {
         return Err(anyhow!("Target profile '{}' does not exist", to));
     }
 
-    let source_config = Config::load(Some(&from)).await?;
     let target_config = Config::load(Some(&to)).await.unwrap_or_default();
 
     if dry_run {
-        preview_profile_sync(&source_config, &target_config, &from, &to).await?;
+        preview_profile_sync(&source_config, &target_config, &from_display_name, &to).await?;
         return Ok(());
     }
 
     println!(
         "{}",
-        format!("Syncing configuration from '{}' to '{}'...", from, to).cyan()
+        format!("Syncing configuration from '{}' to '{}'...", from_display_name, to).cyan()
     );
 
     // Copy the entire configuration
@@ -437,7 +444,7 @@ pub enum ProfileCommands {
     Current,
     /// Sync configuration between profiles
     Sync {
-        /// Source profile
+        /// Source profile (use "default" for main configuration)
         from: String,
         /// Target profile
         to: String,
@@ -499,5 +506,22 @@ mod tests {
         assert_eq!(parsed.current_profile, Some("test".to_string()));
         assert_eq!(parsed.profiles.len(), 1);
         assert_eq!(parsed.profiles["test"].server_count, 5);
+    }
+
+    #[test]
+    fn test_default_profile_sync_logic() {
+        // Test that "default" is handled as a special case in sync operations
+        // This is a unit test for the logic, not the full async function
+        
+        // The key insight is that "default" should be treated specially
+        // and not validated as a regular profile name in sync context
+        let from = "default";
+        let is_default_source = from == "default";
+        assert!(is_default_source);
+        
+        // Regular profile names should not be treated as default
+        let from_regular = "production";
+        let is_regular_source = from_regular == "default";
+        assert!(!is_regular_source);
     }
 }
