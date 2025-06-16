@@ -390,6 +390,8 @@ pub fn rank_templates(
             let ranking = calculate_ranking(&template.name, search_term, Some(&template));
             (template, ranking)
         })
+        // Filter out templates with zero relevance (no match to search term)
+        .filter(|(_, ranking)| ranking.relevance_score > 0.0)
         .collect();
 
     // Sort by specified ranking criteria
@@ -546,5 +548,42 @@ mod tests {
     fn test_truncate_string() {
         assert_eq!(truncate_string("hello", 10), "hello     ");
         assert_eq!(truncate_string("hello world", 8), "hello...");
+    }
+
+    #[test]
+    fn test_rank_templates_filters_non_matching() {
+        use crate::templates::TemplateMetadata;
+        
+        let templates = vec![
+            TemplateMetadata {
+                name: "rightmove".to_string(),
+                version: "1.0.0".to_string(),
+                description: "UK property search".to_string(),
+                author: "test".to_string(),
+                tags: vec!["property".to_string()],
+                platforms: vec!["linux".to_string()],
+                category: "community".to_string(),
+                path: "test.json".to_string(),
+            },
+            TemplateMetadata {
+                name: "filesystem".to_string(),
+                version: "1.0.0".to_string(),
+                description: "File access".to_string(),
+                author: "test".to_string(),
+                tags: vec!["files".to_string()],
+                platforms: vec!["linux".to_string()],
+                category: "official".to_string(),
+                path: "test.json".to_string(),
+            },
+        ];
+
+        // Search for "rightmove" should only return rightmove template
+        let ranked = rank_templates(templates.clone(), "rightmove", None);
+        assert_eq!(ranked.len(), 1);
+        assert_eq!(ranked[0].0.name, "rightmove");
+
+        // Search for non-existent term should return no results
+        let ranked = rank_templates(templates, "nonexistent", None);
+        assert_eq!(ranked.len(), 0);
     }
 }
