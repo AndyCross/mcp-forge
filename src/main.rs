@@ -355,7 +355,7 @@ async fn main() -> Result<()> {
             preview,
         } => cli::handle_enhanced_update(name, args, tag, set, dry_run, preview, cli.profile).await,
         Commands::Template { action } => cli::handle_template_command(action).await,
-        Commands::Config { action } => cli::handle_config_command(action).await,
+        Commands::Config { action } => cli::handle_config_command(action, cli.profile).await,
         Commands::Backup { action } => backup::handle_backup_command(action, cli.profile).await,
         Commands::Bulk { action } => bulk::handle_bulk_command(action, cli.profile).await,
         Commands::Profile { action } => profiles::handle_profile_command(action).await,

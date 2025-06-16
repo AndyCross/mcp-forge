@@ -30,12 +30,6 @@ pub fn get_backup_dir() -> Result<PathBuf> {
     Ok(config_dir.join("backups"))
 }
 
-/// Get profile-specific configuration path
-pub fn get_profile_config_path(profile_name: &str) -> Result<PathBuf> {
-    let config_dir = get_config_dir()?;
-    Ok(config_dir.join(format!("profile_{}.json", profile_name)))
-}
-
 /// Mask sensitive environment variable values to prevent credential leaks
 ///
 /// This function checks if an environment variable key contains sensitive patterns
@@ -91,7 +85,6 @@ mod tests {
         assert!(get_config_dir().is_ok());
         assert!(get_claude_config_path().is_ok());
         assert!(get_backup_dir().is_ok());
-        assert!(get_profile_config_path("test").is_ok());
     }
 
     #[test]

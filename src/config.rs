@@ -25,41 +25,13 @@ pub struct Config {
     pub other: HashMap<String, serde_json::Value>,
 }
 
-/// Profile configuration structure (minimal version for current profile detection)
-#[derive(Debug, Deserialize)]
-struct ProfileConfig {
-    current_profile: Option<String>,
-}
-
-/// Get the current active profile name, if any
-async fn get_current_profile() -> Result<Option<String>> {
-    let profiles_path = utils::get_config_dir()?.join("profiles.json");
-
-    if !profiles_path.exists() {
-        return Ok(None);
-    }
-
-    let content = fs::read_to_string(&profiles_path).await?;
-    let profile_config: ProfileConfig = serde_json::from_str(&content)?;
-
-    Ok(profile_config.current_profile)
-}
-
 impl Config {
     /// Load configuration from file
-    pub async fn load(profile: Option<&str>) -> Result<Self> {
-        // If no profile specified, check if there's a current profile
-        let effective_profile = if profile.is_none() {
-            get_current_profile().await.unwrap_or(None)
-        } else {
-            profile.map(|s| s.to_string())
-        };
-
-        let config_path = if let Some(profile_name) = effective_profile.as_deref() {
-            utils::get_profile_config_path(profile_name)?
-        } else {
-            utils::get_claude_config_path()?
-        };
+    /// Always loads from the main Claude Desktop configuration file
+    pub async fn load(_profile: Option<&str>) -> Result<Self> {
+        // Always load from the main Claude Desktop config file
+        // The profile parameter is ignored - profiles are managed separately
+        let config_path = utils::get_claude_config_path()?;
 
         if !config_path.exists() {
             return Ok(Self::default());
@@ -76,19 +48,11 @@ impl Config {
     }
 
     /// Save configuration to file
-    pub async fn save(&self, profile: Option<&str>) -> Result<()> {
-        // If no profile specified, check if there's a current profile
-        let effective_profile = if profile.is_none() {
-            get_current_profile().await.unwrap_or(None)
-        } else {
-            profile.map(|s| s.to_string())
-        };
-
-        let config_path = if let Some(profile_name) = effective_profile.as_deref() {
-            utils::get_profile_config_path(profile_name)?
-        } else {
-            utils::get_claude_config_path()?
-        };
+    /// Always saves to the main Claude Desktop configuration file
+    pub async fn save(&self, _profile: Option<&str>) -> Result<()> {
+        // Always save to the main Claude Desktop config file
+        // The profile parameter is ignored - profiles are managed separately
+        let config_path = utils::get_claude_config_path()?;
 
         // Ensure parent directory exists
         if let Some(parent) = config_path.parent() {
@@ -132,28 +96,6 @@ impl Config {
             .iter()
             .map(|(k, v)| (k.clone(), v))
             .collect()
-    }
-}
-
-/// Configuration manager for handling MCP server configurations
-pub struct ConfigManager {
-    config: Config,
-    profile: Option<String>,
-}
-
-impl ConfigManager {
-    /// Create a new ConfigManager
-    pub fn new() -> Result<Self> {
-        Ok(Self {
-            config: Config::default(),
-            profile: None,
-        })
-    }
-
-    /// Load configuration from file
-    pub async fn load_config(&mut self) -> Result<()> {
-        self.config = Config::load(self.profile.as_deref()).await?;
-        Ok(())
     }
 }
 

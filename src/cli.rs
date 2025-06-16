@@ -1,4 +1,4 @@
-use crate::config::{Config, ConfigManager, McpServer};
+use crate::config::{Config, McpServer};
 use crate::github::GitHubClient;
 use crate::profiles::update_profile_server_count;
 use crate::search::{filter_servers, format_servers, rank_templates, ListOptions, SearchCriteria};
@@ -35,36 +35,31 @@ pub async fn handle_template_command(action: TemplateCommands) -> Result<()> {
 }
 
 /// Handle config commands
-pub async fn handle_config_command(action: ConfigCommands) -> Result<()> {
+pub async fn handle_config_command(action: ConfigCommands, profile: Option<String>) -> Result<()> {
     match action {
         ConfigCommands::Show => {
-            let mut config_manager = ConfigManager::new()?;
-            config_manager.load_config().await?;
-            let config = Config::load(None).await?;
+            let config = Config::load(profile.as_deref()).await?;
             println!("{}", serde_json::to_string_pretty(&config)?);
         }
         ConfigCommands::Validate { deep, requirements } => {
-            let profile = None; // TODO: Get from global args
             crate::validation::validate_config(deep, requirements, None, profile).await?
         }
         ConfigCommands::Backup { name, auto_name } => {
-            let profile = None; // TODO: Get from global args
             crate::backup::create_backup_with_options(name, auto_name, profile).await?
         }
         ConfigCommands::Restore {
             backup,
             preview,
             server,
-        } => {
-            let profile = None; // TODO: Get from global args
-            crate::backup::restore_backup(backup, preview, server, profile).await?
-        }
+        } => crate::backup::restore_backup(backup, preview, server, profile).await?,
         ConfigCommands::Init => {
             let config = Config::default();
-            config.save(None).await?;
+            config.save(profile.as_deref()).await?;
             println!("✅ Initialized empty configuration");
         }
         ConfigCommands::Path => {
+            // Use the same profile auto-detection logic as Config::load
+            // Always show the main Claude Desktop config path since that's what we manage
             let path = utils::get_claude_config_path()?;
             println!("{}", path.display());
         }

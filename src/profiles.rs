@@ -28,7 +28,7 @@ pub struct ProfileConfig {
 /// Update profile metadata with current server count
 /// This should be called whenever servers are added, removed, or modified
 pub async fn update_profile_server_count(profile_name: Option<&str>) -> Result<()> {
-    // If no profile specified, check if there's a current profile
+    // Get the current profile if none specified
     let effective_profile = if profile_name.is_none() {
         let profile_config = load_profile_config().await?;
         profile_config.current_profile
@@ -36,18 +36,77 @@ pub async fn update_profile_server_count(profile_name: Option<&str>) -> Result<(
         profile_name.map(|s| s.to_string())
     };
 
-    // Only update if we're working with a named profile (not default)
+    // Only update if we're working with a named profile
     if let Some(profile) = effective_profile.as_deref() {
-        let config = Config::load(Some(profile)).await?;
+        // Load the main config to get current server count
+        let config = Config::load(None).await?;
         let mut profile_config = load_profile_config().await?;
 
         if let Some(profile_info) = profile_config.profiles.get_mut(profile) {
             profile_info.server_count = config.mcp_servers.len();
             profile_info.last_used = Some(chrono::Utc::now());
             save_profile_config(&profile_config).await?;
+
+            // Also update the profile snapshot to match current state
+            save_profile_snapshot(profile, &config).await?;
         }
     }
     Ok(())
+}
+
+/// Save a profile snapshot
+async fn save_profile_snapshot(profile_name: &str, config: &Config) -> Result<()> {
+    let snapshot_path = get_profile_snapshot_path(profile_name)?;
+
+    // Ensure parent directory exists
+    if let Some(parent) = snapshot_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    let content = serde_json::to_string_pretty(config)?;
+    fs::write(snapshot_path, content)?;
+
+    Ok(())
+}
+
+/// Load a profile snapshot
+async fn load_profile_snapshot(profile_name: &str) -> Result<Config> {
+    let snapshot_path = get_profile_snapshot_path(profile_name)?;
+
+    if !snapshot_path.exists() {
+        return Ok(Config::default());
+    }
+
+    let content = fs::read_to_string(&snapshot_path)?;
+    let config: Config = serde_json::from_str(&content)?;
+
+    Ok(config)
+}
+
+/// Get path to profile snapshot file
+fn get_profile_snapshot_path(profile_name: &str) -> Result<PathBuf> {
+    let config_dir = utils::get_config_dir()?;
+    let snapshots_dir = config_dir.join("profile_snapshots");
+    Ok(snapshots_dir.join(format!("{}.json", profile_name)))
+}
+
+/// Check if main config has unsaved changes compared to current profile
+async fn has_unsaved_changes() -> Result<bool> {
+    let profile_config = load_profile_config().await?;
+
+    if let Some(current_profile) = &profile_config.current_profile {
+        let main_config = Config::load(None).await?;
+        let profile_snapshot = load_profile_snapshot(current_profile).await?;
+
+        // Compare configurations (simplified - could be more sophisticated)
+        let main_json = serde_json::to_string(&main_config)?;
+        let snapshot_json = serde_json::to_string(&profile_snapshot)?;
+
+        Ok(main_json != snapshot_json)
+    } else {
+        // No current profile, so no unsaved changes to track
+        Ok(false)
+    }
 }
 
 /// Handle profile command routing
@@ -59,6 +118,7 @@ pub async fn handle_profile_command(action: ProfileCommands) -> Result<()> {
         ProfileCommands::Current => handle_profile_current().await,
         ProfileCommands::Sync { from, to, dry_run } => handle_profile_sync(from, to, dry_run).await,
         ProfileCommands::Delete { name, force } => handle_profile_delete(name, force).await,
+        ProfileCommands::Save { name } => handle_profile_save(name).await,
     }
 }
 
@@ -84,9 +144,9 @@ async fn handle_profile_create(name: String) -> Result<()> {
     // Add to profile config
     profile_config.profiles.insert(name.clone(), profile_info);
 
-    // Create empty configuration for this profile
+    // Create empty snapshot for this profile
     let empty_config = Config::default();
-    empty_config.save(Some(&name)).await?;
+    save_profile_snapshot(&name, &empty_config).await?;
 
     // Save profile config
     save_profile_config(&profile_config).await?;
@@ -159,6 +219,36 @@ async fn handle_profile_switch(name: String) -> Result<()> {
         return Err(anyhow!("Profile '{}' does not exist", name));
     }
 
+    // Check for unsaved changes in current profile
+    if has_unsaved_changes().await? {
+        println!(
+            "{}",
+            "⚠️  Warning: You have unsaved changes in the current profile!".yellow()
+        );
+
+        if let Some(current_profile) = &profile_config.current_profile {
+            println!("Current profile: {}", current_profile.bold());
+
+            let save_changes =
+                inquire::Confirm::new("Save changes to current profile before switching?")
+                    .with_default(true)
+                    .prompt()?;
+
+            if save_changes {
+                // Save current main config as snapshot for current profile
+                let main_config = Config::load(None).await?;
+                save_profile_snapshot(current_profile, &main_config).await?;
+                println!("✓ Changes saved to profile '{}'", current_profile);
+            } else {
+                println!("⚠️  Unsaved changes will be lost");
+            }
+        }
+    }
+
+    // Load the target profile snapshot and copy it to main config
+    let profile_snapshot = load_profile_snapshot(&name).await?;
+    profile_snapshot.save(None).await?;
+
     // Update current profile
     profile_config.current_profile = Some(name.clone());
 
@@ -170,10 +260,15 @@ async fn handle_profile_switch(name: String) -> Result<()> {
     save_profile_config(&profile_config).await?;
 
     println!("{}", format!("✓ Switched to profile '{}'", name).green());
+    println!(
+        "  Servers in this profile: {}",
+        profile_snapshot.mcp_servers.len()
+    );
 
-    // Show basic info about the profile
-    if let Ok(config) = Config::load(Some(&name)).await {
-        println!("  Servers in this profile: {}", config.mcp_servers.len());
+    if !profile_snapshot.mcp_servers.is_empty() {
+        for server_name in profile_snapshot.mcp_servers.keys() {
+            println!("    • {}", server_name);
+        }
     }
 
     Ok(())
@@ -197,8 +292,8 @@ async fn handle_profile_current() -> Result<()> {
             println!("  Servers: {}", profile_info.server_count);
         }
 
-        // Show servers in current profile
-        if let Ok(config) = Config::load(Some(current_name)).await {
+        // Show servers in main config (what's actually active)
+        if let Ok(config) = Config::load(None).await {
             if !config.mcp_servers.is_empty() {
                 println!();
                 println!("Servers in this profile:");
@@ -230,7 +325,7 @@ async fn handle_profile_sync(from: String, to: String, dry_run: bool) -> Result<
         if !profile_config.profiles.contains_key(&from) {
             return Err(anyhow!("Source profile '{}' does not exist", from));
         }
-        (Config::load(Some(&from)).await?, from.clone())
+        (load_profile_snapshot(&from).await?, from.clone())
     };
 
     // Validate target profile exists
@@ -238,7 +333,7 @@ async fn handle_profile_sync(from: String, to: String, dry_run: bool) -> Result<
         return Err(anyhow!("Target profile '{}' does not exist", to));
     }
 
-    let target_config = Config::load(Some(&to)).await.unwrap_or_default();
+    let target_config = load_profile_snapshot(&to).await?;
 
     if dry_run {
         preview_profile_sync(&source_config, &target_config, &from_display_name, &to).await?;
@@ -254,8 +349,8 @@ async fn handle_profile_sync(from: String, to: String, dry_run: bool) -> Result<
         .cyan()
     );
 
-    // Copy the entire configuration
-    source_config.save(Some(&to)).await?;
+    // Save source config as snapshot for target profile
+    save_profile_snapshot(&to, &source_config).await?;
 
     // Update profile metadata with new server count
     update_profile_server_count(Some(&to)).await?;
@@ -303,17 +398,64 @@ async fn handle_profile_delete(name: String, force: bool) -> Result<()> {
     profile_config.profiles.remove(&name);
     save_profile_config(&profile_config).await?;
 
-    // Delete the profile's configuration file
-    if let Ok(config_path) = get_profile_config_path(&name) {
-        if config_path.exists() {
-            fs::remove_file(config_path)?;
-        }
+    // Delete the profile's snapshot file
+    let snapshot_path = get_profile_snapshot_path(&name)?;
+    if snapshot_path.exists() {
+        fs::remove_file(snapshot_path)?;
     }
 
     println!(
         "{}",
         format!("✓ Profile '{}' deleted successfully", name).green()
     );
+
+    Ok(())
+}
+
+/// Save current configuration to profile
+async fn handle_profile_save(name: Option<String>) -> Result<()> {
+    let profile_config = load_profile_config().await?;
+
+    // Determine which profile to save to
+    let target_profile = if let Some(name) = name {
+        // Validate the profile exists
+        if !profile_config.profiles.contains_key(&name) {
+            return Err(anyhow!("Profile '{}' does not exist", name));
+        }
+        name
+    } else {
+        // Use current profile
+        profile_config.current_profile.clone().ok_or_else(|| {
+            anyhow!(
+                "No current profile selected. Specify a profile name or switch to a profile first."
+            )
+        })?
+    };
+
+    // Load current main config
+    let main_config = Config::load(None).await?;
+
+    // Save as snapshot
+    save_profile_snapshot(&target_profile, &main_config).await?;
+
+    // Update profile metadata
+    update_profile_server_count(Some(&target_profile)).await?;
+
+    println!(
+        "{}",
+        format!(
+            "✓ Current configuration saved to profile '{}'",
+            target_profile
+        )
+        .green()
+    );
+    println!("  Servers saved: {}", main_config.mcp_servers.len());
+
+    if !main_config.mcp_servers.is_empty() {
+        for server_name in main_config.mcp_servers.keys() {
+            println!("    • {}", server_name);
+        }
+    }
 
     Ok(())
 }
@@ -421,12 +563,6 @@ fn get_profiles_config_path() -> Result<PathBuf> {
     Ok(config_dir.join("profiles.json"))
 }
 
-/// Get path to a specific profile's configuration
-fn get_profile_config_path(profile_name: &str) -> Result<PathBuf> {
-    let config_dir = utils::get_config_dir()?;
-    Ok(config_dir.join(format!("profile_{}.json", profile_name)))
-}
-
 /// Validate profile name
 fn validate_profile_name(name: &str) -> Result<()> {
     if name.is_empty() {
@@ -491,6 +627,11 @@ pub enum ProfileCommands {
         /// Force deletion without confirmation
         #[arg(long)]
         force: bool,
+    },
+    /// Save current configuration to profile
+    Save {
+        /// Profile name (defaults to current profile)
+        name: Option<String>,
     },
 }
 

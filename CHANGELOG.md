@@ -12,6 +12,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Contributing guidelines
 - Development setup instructions
 
+## [0.5.0] - 2025-01-16 - Profile System Redesign: True Claude Desktop Integration
+
+### 🚀 Major Changes
+- **BREAKING**: Complete redesign of profile system to properly manage Claude Desktop configuration
+- Profiles now work by overwriting the main `claude_desktop_config.json` file instead of separate profile files
+- Profile snapshots are stored separately and copied to main config when switching profiles
+
+### ✨ New Features
+- **Profile Snapshot System**: Profiles now store configuration snapshots that get applied to main config
+- **Unsaved Changes Detection**: System detects when main config differs from current profile snapshot
+- **Interactive Profile Switching**: Prompts to save unsaved changes before switching profiles
+- **Profile Save Command**: New `mcp-forge profile save [name]` command to save current config to profile
+- **Automatic Profile Updates**: Profile metadata automatically updates when servers are modified
+
+### 🔧 Improvements
+- **True Claude Desktop Integration**: All operations now work directly with Claude Desktop's config file
+- **Consistent Server Counts**: Profile metadata now accurately reflects actual server counts
+- **Better User Experience**: No need to specify `--profile` for routine operations when using profiles
+- **Simplified Architecture**: Removed complex profile auto-detection logic in favor of snapshot-based approach
+
+### 🐛 Bug Fixes
+- Fixed profile server count inconsistencies where metadata didn't match actual servers
+- Fixed config path command showing wrong file path when using profiles
+- Fixed profile operations not updating the actual Claude Desktop configuration
+- Resolved confusion between profile metadata and actual active configuration
+
+### 🔄 Migration Notes
+- **Existing Profiles**: Old profile files will need to be recreated or synced to new snapshot format
+- **Configuration Management**: All server operations now directly affect Claude Desktop's config file
+- **Profile Switching**: Profile switches now immediately update Claude Desktop configuration
+
+### 🧹 Code Quality
+- Removed unused `ConfigManager` and profile auto-detection code
+- Cleaned up dead code and improved error handling
+- Enhanced profile validation and metadata management
+- Improved code organization and documentation
+
+### 📋 Technical Details
+- Profile snapshots stored in `~/.config/claude/profile_snapshots/`
+- Main configuration always at standard Claude Desktop location
+- Profile metadata maintained in `profiles.json` for tracking and management
+- Comprehensive change detection between snapshots and active config
+
+This release fundamentally improves how mcp-forge manages Claude Desktop configurations, making profiles work as intended by directly managing the main configuration file that Claude Desktop actually reads.
+
 ## [0.4.1] - 2025-01-16 - Profile System Consistency Fix
 
 ### Fixed
@@ -498,8 +543,6 @@ mcp-forge template search database     # Returns postgres + sqlite
 - Basic Rust project structure
 - Initial CLI framework
 - Core concept validation
-
----
 
 ## Release Notes
 
