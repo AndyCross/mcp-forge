@@ -215,8 +215,9 @@ mod tests {
             platforms: vec!["macos".to_string()],
             variables: HashMap::new(),
             config: crate::templates::TemplateConfig {
-                command: "echo".to_string(),
-                args: vec!["test".to_string()],
+                command: Some("echo".to_string()),
+                args: Some(vec!["test".to_string()]),
+                url: None,
                 env: None,
             },
             requirements: None,

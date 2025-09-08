@@ -322,7 +322,7 @@ pub async fn handle_enhanced_remove(
                     "  {} {} - {}",
                     "REMOVE".red(),
                     server_name.bold(),
-                    server.command
+                    server.command.as_deref().unwrap_or("Command")
                 );
             }
         }
@@ -339,7 +339,12 @@ pub async fn handle_enhanced_remove(
         println!("Servers to be removed:");
         for server_name in &servers_to_remove {
             if let Some(server) = config.mcp_servers.get(server_name) {
-                println!("  • {} - {}", server_name.bold(), server.command);
+                let server_desc = if server.is_url_server() {
+                server.url.as_ref().map(|u| crate::utils::mask_sensitive_url(u)).unwrap_or_else(|| "URL".to_string())
+            } else {
+                server.command.as_ref().unwrap_or(&"Command".to_string()).clone()
+            };
+            println!("  • {} - {}", server_name.bold(), server_desc);
             }
         }
 
@@ -494,7 +499,7 @@ pub async fn handle_enhanced_update(
             if let Some(new_args) = &args {
                 let parsed_args: Vec<String> =
                     new_args.split_whitespace().map(|s| s.to_string()).collect();
-                server.args = parsed_args;
+                server.args = Some(parsed_args);
                 changed = true;
             }
 
@@ -557,10 +562,27 @@ async fn preview_add_operation(
     };
 
     println!("{} {}", status, name.bold());
-    println!("  Command: {}", server.command);
-    if !server.args.is_empty() {
-        println!("  Arguments: {}", server.args.join(" "));
+    
+    // Display based on server type
+    if server.is_url_server() {
+        println!("  Type: URL");
+        if let Some(url) = &server.url {
+            // Mask sensitive parts of URL (like API keys in query params)
+            let masked_url = crate::utils::mask_sensitive_url(url);
+            println!("  URL: {}", masked_url);
+        }
+    } else {
+        println!("  Type: Command");
+        if let Some(command) = &server.command {
+            println!("  Command: {}", command);
+        }
+        if let Some(args) = &server.args {
+            if !args.is_empty() {
+                println!("  Arguments: {}", args.join(" "));
+            }
+        }
     }
+    
     if let Some(env) = &server.env {
         if !env.is_empty() {
             println!("  Environment:");
@@ -579,9 +601,19 @@ async fn preview_edit_operation(name: &str, server: &McpServer) -> Result<()> {
     println!("{}", "Edit Preview (Dry Run)".cyan().bold());
     println!("{}", "────────────────────".cyan());
     println!("Server: {}", name.bold());
-    println!("  Current command: {}", server.command);
-    if !server.args.is_empty() {
-        println!("  Current arguments: {}", server.args.join(" "));
+    if server.is_url_server() {
+        if let Some(url) = &server.url {
+            println!("  Current URL: {}", crate::utils::mask_sensitive_url(url));
+        }
+    } else {
+        if let Some(command) = &server.command {
+            println!("  Current command: {}", command);
+        }
+        if let Some(args) = &server.args {
+            if !args.is_empty() {
+                println!("  Current arguments: {}", args.join(" "));
+            }
+        }
     }
     println!();
     println!("Use without --dry-run to edit interactively.");
@@ -606,7 +638,7 @@ async fn preview_update_operation(
             if let Some(new_args) = args {
                 println!(
                     "  Arguments: {} → {}",
-                    server.args.join(" ").dimmed(),
+                    server.args.as_ref().map(|a| a.join(" ")).unwrap_or_default().dimmed(),
                     new_args.cyan()
                 );
             }
@@ -630,17 +662,28 @@ async fn preview_update_operation(
 async fn show_server_diff(old: &McpServer, new: &McpServer, name: &str) -> Result<()> {
     println!("\n{} Changes for server '{}':", "📝".cyan(), name);
 
+    // Check URL changes
+    if old.url != new.url {
+        let old_url = old.url.as_ref().map(|u| crate::utils::mask_sensitive_url(u)).unwrap_or_else(|| "None".to_string());
+        let new_url = new.url.as_ref().map(|u| crate::utils::mask_sensitive_url(u)).unwrap_or_else(|| "None".to_string());
+        println!("  URL: {} → {}", old_url.red(), new_url.green());
+    }
+
     // Check command changes
     if old.command != new.command {
-        println!("  Command: {} → {}", old.command.red(), new.command.green());
+        let old_cmd = old.command.as_deref().unwrap_or("None");
+        let new_cmd = new.command.as_deref().unwrap_or("None");
+        println!("  Command: {} → {}", old_cmd.red(), new_cmd.green());
     }
 
     // Check args changes
     if old.args != new.args {
+        let old_args = old.args.as_ref().map(|a| a.join(" ")).unwrap_or_else(|| "None".to_string());
+        let new_args = new.args.as_ref().map(|a| a.join(" ")).unwrap_or_else(|| "None".to_string());
         println!(
             "  Args: {} → {}",
-            old.args.join(" ").red(),
-            new.args.join(" ").green()
+            old_args.red(),
+            new_args.green()
         );
     }
 
@@ -693,21 +736,37 @@ async fn show_server_diff(old: &McpServer, new: &McpServer, name: &str) -> Resul
 async fn edit_server_interactive(server: &McpServer) -> Result<McpServer> {
     let mut edited = server.clone();
 
-    // Edit command
-    let new_command = Text::new("Command:")
-        .with_initial_value(&server.command)
-        .prompt()?;
-    edited.command = new_command;
+    // Check if this is a URL or command server
+    if server.is_url_server() {
+        // Edit URL
+        let current_url = server.url.as_deref().unwrap_or("");
+        let new_url = Text::new("URL:")
+            .with_initial_value(current_url)
+            .prompt()?;
+        edited.url = Some(new_url);
+        edited.command = None;
+        edited.args = None;
+    } else {
+        // Edit command
+        let current_command = server.command.as_deref().unwrap_or("");
+        let new_command = Text::new("Command:")
+            .with_initial_value(current_command)
+            .prompt()?;
+        edited.command = Some(new_command);
 
-    // Edit arguments
-    let args_string = server.args.join(" ");
-    let new_args_string = Text::new("Arguments:")
-        .with_initial_value(&args_string)
-        .prompt()?;
-    edited.args = new_args_string
-        .split_whitespace()
-        .map(|s| s.to_string())
-        .collect();
+        // Edit arguments
+        let args_string = server.args.as_ref().map(|a| a.join(" ")).unwrap_or_default();
+        let new_args_string = Text::new("Arguments:")
+            .with_initial_value(&args_string)
+            .prompt()?;
+        edited.args = Some(
+            new_args_string
+                .split_whitespace()
+                .map(|s| s.to_string())
+                .collect()
+        );
+        edited.url = None;
+    }
 
     // Edit environment variables
     if let Some(env) = &server.env {
@@ -867,9 +926,15 @@ async fn handle_template_show(name: String) -> Result<()> {
     }
 
     println!("\nConfiguration:");
-    println!("Command: {}", template.config.command);
-    if !template.config.args.is_empty() {
-        println!("Arguments: {}", template.config.args.join(" "));
+    if let Some(url) = &template.config.url {
+        println!("URL: {}", url);
+    } else if let Some(command) = &template.config.command {
+        println!("Command: {}", command);
+    }
+    if let Some(args) = &template.config.args {
+        if !args.is_empty() {
+            println!("Arguments: {}", args.join(" "));
+        }
     }
 
     if let Some(env) = &template.config.env {
@@ -989,7 +1054,12 @@ pub async fn handle_import(
         println!("🔍 Would import configuration from: {}", file);
         println!("  Servers to import: {}", config.mcp_servers.len());
         for (name, server) in &config.mcp_servers {
-            println!("    • {} ({})", name, server.command);
+            let server_desc = if server.is_url_server() {
+                "URL server"
+            } else {
+                server.command.as_deref().unwrap_or("Command server")
+            };
+            println!("    • {} ({})", name, server_desc);
         }
         return Ok(());
     }

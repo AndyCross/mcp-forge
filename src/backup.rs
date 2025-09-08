@@ -373,7 +373,12 @@ async fn preview_restore(
             "NEW".green()
         };
 
-        println!("  {} {} - {}", status, name.bold(), server.command);
+        let server_desc = if server.is_url_server() {
+            server.url.as_ref().map(|u| crate::utils::mask_sensitive_url(u)).unwrap_or_else(|| "URL".to_string())
+        } else {
+            server.command.as_ref().unwrap_or(&"Command".to_string()).clone()
+        };
+        println!("  {} {} - {}", status, name.bold(), server_desc);
     }
 
     if server_filter.is_none() {

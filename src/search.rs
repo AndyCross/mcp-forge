@@ -63,8 +63,8 @@ impl From<(String, McpServer)> for ServerInfo {
     fn from((name, server): (String, McpServer)) -> Self {
         Self {
             name,
-            command: server.command,
-            args: server.args,
+            command: server.command.unwrap_or_default(),
+            args: server.args.unwrap_or_default(),
             env: server.env,
             template: None, // Will be enriched if available
             tags: vec![],   // Will be enriched if available
@@ -465,18 +465,20 @@ mod tests {
             (
                 "test1".to_string(),
                 McpServer {
-                    command: "npx".to_string(),
-                    args: vec!["filesystem".to_string()],
-                    env: None,
+                    command: Some("npx".to_string()),
+                    args: Some(vec!["filesystem".to_string()]),
+                    url: None,
+                env: None,
                     other: HashMap::new(),
                 },
             ),
             (
                 "database".to_string(),
                 McpServer {
-                    command: "psql".to_string(),
-                    args: ["-h", "localhost"].iter().map(|s| s.to_string()).collect(),
-                    env: None,
+                    command: Some("psql".to_string()),
+                    args: Some(["-h", "localhost"].iter().map(|s| s.to_string()).collect()),
+                    url: None,
+                env: None,
                     other: HashMap::new(),
                 },
             ),

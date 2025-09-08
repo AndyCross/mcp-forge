@@ -6,10 +6,15 @@ use std::path::PathBuf;
 use tokio::fs;
 
 /// Represents an MCP server configuration
+/// Supports both command-based and URL-based servers
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpServer {
-    pub command: String,
-    pub args: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub args: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub env: Option<HashMap<String, String>>,
     #[serde(flatten)]
@@ -99,6 +104,48 @@ impl Config {
     }
 }
 
+impl McpServer {
+    /// Check if this is a URL-type server
+    pub fn is_url_server(&self) -> bool {
+        self.url.is_some()
+    }
+
+    /// Check if this is a command-type server
+    pub fn is_command_server(&self) -> bool {
+        self.command.is_some()
+    }
+
+    /// Validate the server configuration
+    pub fn validate(&self) -> Result<()> {
+        // A server must have either a URL or a command, but not both
+        match (self.url.as_ref(), self.command.as_ref()) {
+            (Some(_), Some(_)) => {
+                anyhow::bail!("Server cannot have both 'url' and 'command' fields")
+            }
+            (None, None) => {
+                anyhow::bail!("Server must have either 'url' or 'command' field")
+            }
+            (Some(_), None) => {
+                // URL server - valid
+                Ok(())
+            }
+            (None, Some(_)) => {
+                // Command server - args can be empty but should be present for command servers
+                Ok(())
+            }
+        }
+    }
+
+    /// Get a display string for the server type
+    pub fn server_type(&self) -> &str {
+        if self.is_url_server() {
+            "url"
+        } else {
+            "command"
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -109,8 +156,9 @@ mod tests {
         config.mcp_servers.insert(
             "test-server".to_string(),
             McpServer {
-                command: "node".to_string(),
-                args: vec!["server.js".to_string()],
+                command: Some("node".to_string()),
+                args: Some(vec!["server.js".to_string()]),
+                url: None,
                 env: None,
                 other: HashMap::new(),
             },
@@ -121,6 +169,32 @@ mod tests {
 
         assert_eq!(config.mcp_servers.len(), parsed.mcp_servers.len());
         assert!(parsed.mcp_servers.contains_key("test-server"));
+    }
+
+    #[test]
+    fn test_url_server() {
+        let mut config = Config::default();
+        config.mcp_servers.insert(
+            "url-server".to_string(),
+            McpServer {
+                command: None,
+                args: None,
+                url: Some("https://example.com/mcp".to_string()),
+                env: None,
+                other: HashMap::new(),
+            },
+        );
+
+        let json = serde_json::to_string_pretty(&config).unwrap();
+        let parsed: Config = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(config.mcp_servers.len(), parsed.mcp_servers.len());
+        assert!(parsed.mcp_servers.contains_key("url-server"));
+        
+        let server = parsed.mcp_servers.get("url-server").unwrap();
+        assert!(server.is_url_server());
+        assert!(!server.is_command_server());
+        assert_eq!(server.server_type(), "url");
     }
 
     #[test]

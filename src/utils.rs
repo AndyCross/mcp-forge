@@ -30,6 +30,68 @@ pub fn get_backup_dir() -> Result<PathBuf> {
     Ok(config_dir.join("backups"))
 }
 
+/// Mask sensitive parts of URLs to prevent credential leaks
+///
+/// This function looks for API keys and tokens in URL query parameters
+/// and masks them to prevent accidental exposure.
+pub fn mask_sensitive_url(url: &str) -> String {
+    // Parse the URL to find query parameters
+    if let Ok(parsed_url) = url::Url::parse(url) {
+        let mut masked_url = format!("{}://{}", parsed_url.scheme(), parsed_url.host_str().unwrap_or(""));
+        
+        if let Some(port) = parsed_url.port() {
+            masked_url.push_str(&format!(":{}", port));
+        }
+        
+        masked_url.push_str(parsed_url.path());
+        
+        // Check for query parameters
+        if let Some(query) = parsed_url.query() {
+            let mut masked_params = Vec::new();
+            for pair in query.split('&') {
+                if let Some((key, value)) = pair.split_once('=') {
+                    let normalized_key = key.to_lowercase();
+                    // Check if this is a sensitive parameter
+                    let is_sensitive = normalized_key.contains("key") 
+                        || normalized_key.contains("token")
+                        || normalized_key.contains("secret")
+                        || normalized_key.contains("password")
+                        || normalized_key.contains("apikey")
+                        || normalized_key.contains("api_key");
+                    
+                    if is_sensitive && value.len() > 6 {
+                        // Mask the value
+                        let first_part = &value[..3];
+                        let last_part = &value[value.len() - 3..];
+                        let masked_value = format!("{}***{}", first_part, last_part);
+                        masked_params.push(format!("{}={}", key, masked_value));
+                    } else if is_sensitive {
+                        masked_params.push(format!("{}=***", key));
+                    } else {
+                        masked_params.push(format!("{}={}", key, value));
+                    }
+                } else {
+                    masked_params.push(pair.to_string());
+                }
+            }
+            if !masked_params.is_empty() {
+                masked_url.push('?');
+                masked_url.push_str(&masked_params.join("&"));
+            }
+        }
+        
+        if let Some(fragment) = parsed_url.fragment() {
+            masked_url.push('#');
+            masked_url.push_str(fragment);
+        }
+        
+        masked_url
+    } else {
+        // If URL parsing fails, return as-is (might not be a valid URL)
+        url.to_string()
+    }
+}
+
 /// Mask sensitive environment variable values to prevent credential leaks
 ///
 /// This function checks if an environment variable key contains sensitive patterns

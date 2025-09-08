@@ -266,11 +266,18 @@ async fn validate_server(
 
 /// Check if the command exists and is executable
 fn validate_command_exists(server: &McpServer, result: &mut ValidationResult) {
-    let command = &server.command;
+    // For URL servers, skip command validation
+    if server.is_url_server() {
+        return;
+    }
+    
+    let Some(command) = &server.command else {
+        return;
+    };
 
     // Check if it's a full path
-    if Path::new(command).is_absolute() {
-        if !Path::new(command).exists() {
+    if Path::new(command.as_str()).is_absolute() {
+        if !Path::new(command.as_str()).exists() {
             result.issues.push(ValidationIssue {
                 issue_type: "Command Not Found".to_string(),
                 message: format!("Command path '{}' does not exist", command),
@@ -280,7 +287,7 @@ fn validate_command_exists(server: &McpServer, result: &mut ValidationResult) {
             return;
         }
 
-        if !is_executable(Path::new(command)) {
+        if !is_executable(Path::new(command.as_str())) {
             result.issues.push(ValidationIssue {
                 issue_type: "Not Executable".to_string(),
                 message: format!("Command '{}' is not executable", command),
@@ -303,8 +310,12 @@ fn validate_command_exists(server: &McpServer, result: &mut ValidationResult) {
 
 /// Validate command arguments
 fn validate_arguments(server: &McpServer, result: &mut ValidationResult) {
+    let Some(args) = &server.args else {
+        return;
+    };
+    
     // Check for common problematic argument patterns
-    for (i, arg) in server.args.iter().enumerate() {
+    for (i, arg) in args.iter().enumerate() {
         // Check for unquoted spaces in file paths
         if arg.contains(' ') && !arg.starts_with('"') && !arg.starts_with('\'') {
             result.issues.push(ValidationIssue {
@@ -321,7 +332,7 @@ fn validate_arguments(server: &McpServer, result: &mut ValidationResult) {
 
         // Check for file/directory arguments that don't exist
         if (arg.starts_with('/') || arg.starts_with("./") || arg.contains(":\\"))
-            && !Path::new(arg).exists()
+            && !Path::new(arg.as_str()).exists()
         {
             result.issues.push(ValidationIssue {
                 issue_type: "Path Not Found".to_string(),
@@ -376,7 +387,9 @@ fn validate_environment(server: &McpServer, result: &mut ValidationResult) {
 
 /// Check system requirements for the server
 async fn validate_requirements(server: &McpServer, result: &mut ValidationResult) {
-    let command = &server.command;
+    let Some(command) = &server.command else {
+        return;
+    };
 
     match command.as_str() {
         "node" | "npx" => {
@@ -426,8 +439,9 @@ async fn perform_deep_validation(server: &McpServer, result: &mut ValidationResu
     // Check for common configuration issues
 
     // Validate port numbers in arguments
-    for arg in &server.args {
-        if let Ok(port) = arg.parse::<u16>() {
+    if let Some(args) = &server.args {
+        for arg in args {
+            if let Ok(port) = arg.parse::<u16>() {
             if port < 1024 {
                 result.issues.push(ValidationIssue {
                     issue_type: "Privileged Port".to_string(),
@@ -436,22 +450,25 @@ async fn perform_deep_validation(server: &McpServer, result: &mut ValidationResu
                     fix_suggestion: Some("Consider using a port > 1024".to_string()),
                 });
             }
+            }
         }
     }
 
     // Check for potential resource issues
-    if server.args.len() > 20 {
-        result.issues.push(ValidationIssue {
-            issue_type: "Many Arguments".to_string(),
-            message: format!(
-                "Server has {} arguments, which might indicate complexity",
-                server.args.len()
-            ),
-            severity: ValidationStatus::Warning,
-            fix_suggestion: Some(
-                "Consider using configuration files instead of many arguments".to_string(),
-            ),
-        });
+    if let Some(args) = &server.args {
+        if args.len() > 20 {
+            result.issues.push(ValidationIssue {
+                issue_type: "Many Arguments".to_string(),
+                message: format!(
+                    "Server has {} arguments, which might indicate complexity",
+                    args.len()
+                ),
+                severity: ValidationStatus::Warning,
+                fix_suggestion: Some(
+                    "Consider using configuration files instead of many arguments".to_string(),
+                ),
+            });
+        }
     }
 }
 
@@ -780,9 +797,10 @@ mod tests {
     #[test]
     fn test_command_validation() {
         let server = McpServer {
-            command: "nonexistent-command-12345".to_string(),
-            args: vec![],
-            env: None,
+            command: Some("nonexistent-command-12345".to_string()),
+            args: Some(vec![]),
+            url: None,
+                env: None,
             other: HashMap::new(),
         };
 
@@ -802,9 +820,10 @@ mod tests {
     #[test]
     fn test_argument_validation() {
         let server = McpServer {
-            command: "test".to_string(),
-            args: vec!["file with spaces".to_string()],
-            env: None,
+            command: Some("test".to_string()),
+            args: Some(vec!["file with spaces".to_string()]),
+            url: None,
+                env: None,
             other: HashMap::new(),
         };
 

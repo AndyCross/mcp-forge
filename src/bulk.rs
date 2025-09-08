@@ -194,7 +194,12 @@ async fn handle_bulk_remove(
     println!("Servers matching pattern '{}':", pattern.bold());
     for server_name in &matching_servers {
         if let Some(server) = config.mcp_servers.get(server_name) {
-            println!("  • {} - {}", server_name.bold(), server.command);
+            let server_desc = if server.is_url_server() {
+                server.url.as_ref().map(|u| crate::utils::mask_sensitive_url(u)).unwrap_or_else(|| "URL".to_string())
+            } else {
+                server.command.as_ref().unwrap_or(&"Command".to_string()).clone()
+            };
+            println!("  • {} - {}", server_name.bold(), server_desc);
         }
     }
 
@@ -597,8 +602,9 @@ mod tests {
         config.mcp_servers.insert(
             "test-server-1".to_string(),
             McpServer {
-                command: "cmd1".to_string(),
-                args: vec![],
+                command: Some("cmd1".to_string()),
+                args: Some(vec![]),
+                url: None,
                 env: None,
                 other: HashMap::new(),
             },
@@ -606,8 +612,9 @@ mod tests {
         config.mcp_servers.insert(
             "test-server-2".to_string(),
             McpServer {
-                command: "cmd2".to_string(),
-                args: vec![],
+                command: Some("cmd2".to_string()),
+                args: Some(vec![]),
+                url: None,
                 env: None,
                 other: HashMap::new(),
             },
@@ -615,8 +622,9 @@ mod tests {
         config.mcp_servers.insert(
             "prod-server".to_string(),
             McpServer {
-                command: "cmd3".to_string(),
-                args: vec![],
+                command: Some("cmd3".to_string()),
+                args: Some(vec![]),
+                url: None,
                 env: None,
                 other: HashMap::new(),
             },

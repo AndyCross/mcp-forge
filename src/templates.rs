@@ -49,12 +49,50 @@ pub struct Template {
 }
 
 /// Template configuration section
+/// Supports both command-based and URL-based servers
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TemplateConfig {
-    pub command: String,
-    pub args: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub args: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub env: Option<HashMap<String, String>>,
+}
+
+impl TemplateConfig {
+    /// Validate the template configuration
+    pub fn validate(&self) -> Result<()> {
+        // A template must have either a URL or a command, but not both
+        match (self.url.as_ref(), self.command.as_ref()) {
+            (Some(_), Some(_)) => {
+                anyhow::bail!("Template cannot have both 'url' and 'command' fields")
+            }
+            (None, None) => {
+                anyhow::bail!("Template must have either 'url' or 'command' field")
+            }
+            (Some(_), None) => {
+                // URL template - valid
+                Ok(())
+            }
+            (None, Some(_)) => {
+                // Command template - valid
+                Ok(())
+            }
+        }
+    }
+
+    /// Check if this is a URL-type template
+    pub fn is_url_template(&self) -> bool {
+        self.url.is_some()
+    }
+
+    /// Check if this is a command-type template
+    pub fn is_command_template(&self) -> bool {
+        self.command.is_some()
+    }
 }
 
 /// Template catalog for repository index
@@ -272,7 +310,10 @@ impl TemplateManager {
         template: &Template,
         variables: &HashMap<String, serde_json::Value>,
     ) -> Result<crate::config::McpServer> {
-        // Validate variables first
+        // Validate template configuration first
+        template.config.validate()?;
+        
+        // Validate variables
         self.validate_variables(template, variables)?;
 
         // Create context for template rendering
@@ -281,40 +322,79 @@ impl TemplateManager {
             context.insert(key.clone(), value.clone());
         }
 
-        // Render command
-        let command = self
-            .handlebars
-            .render_template(&template.config.command, &context)
-            .with_context(|| {
-                format!(
-                    "Failed to render command template: {}",
-                    template.config.command
-                )
-            })?;
-
-        // Render arguments
-        let mut rendered_args = Vec::new();
-        for arg in &template.config.args {
-            let rendered_arg = self
+        // Check if this is a URL template or command template
+        if template.config.is_url_template() {
+            // Render URL
+            let url = template.config.url.as_ref().unwrap();
+            let rendered_url = self
                 .handlebars
-                .render_template(arg, &context)
-                .with_context(|| format!("Failed to render argument template: {}", arg))?;
-            rendered_args.push(rendered_arg);
-        }
+                .render_template(url, &context)
+                .with_context(|| format!("Failed to render URL template: {}", url))?;
 
-        // Render environment variables if present
-        let rendered_env = if let Some(env) = &template.config.env {
+            // Render environment variables if present
+            let rendered_env = self.render_env(&template.config.env, &context)?;
+
+            Ok(crate::config::McpServer {
+                command: None,
+                args: None,
+                url: Some(rendered_url),
+                env: rendered_env,
+                other: HashMap::new(),
+            })
+        } else {
+            // Render command
+            let command = template.config.command.as_ref().unwrap();
+            let rendered_command = self
+                .handlebars
+                .render_template(command, &context)
+                .with_context(|| format!("Failed to render command template: {}", command))?;
+
+            // Render arguments
+            let rendered_args = if let Some(args) = &template.config.args {
+                let mut rendered = Vec::new();
+                for arg in args {
+                    let rendered_arg = self
+                        .handlebars
+                        .render_template(arg, &context)
+                        .with_context(|| format!("Failed to render argument template: {}", arg))?;
+                    rendered.push(rendered_arg);
+                }
+                Some(rendered)
+            } else {
+                Some(Vec::new()) // Default to empty args for command servers
+            };
+
+            // Render environment variables if present
+            let rendered_env = self.render_env(&template.config.env, &context)?;
+
+            Ok(crate::config::McpServer {
+                command: Some(rendered_command),
+                args: rendered_args,
+                url: None,
+                env: rendered_env,
+                other: HashMap::new(),
+            })
+        }
+    }
+
+    /// Helper method to render environment variables
+    fn render_env(
+        &self,
+        env: &Option<HashMap<String, String>>,
+        context: &serde_json::Map<String, serde_json::Value>,
+    ) -> Result<Option<HashMap<String, String>>> {
+        if let Some(env) = env {
             let mut rendered_env_map = HashMap::new();
             for (key, value) in env {
                 let rendered_key = self
                     .handlebars
-                    .render_template(key, &context)
+                    .render_template(key, context)
                     .with_context(|| {
                         format!("Failed to render environment key template: {}", key)
                     })?;
                 let rendered_value = self
                     .handlebars
-                    .render_template(value, &context)
+                    .render_template(value, context)
                     .with_context(|| {
                         format!("Failed to render environment value template: {}", value)
                     })?;
@@ -325,20 +405,13 @@ impl TemplateManager {
                 }
             }
             if rendered_env_map.is_empty() {
-                None
+                Ok(None)
             } else {
-                Some(rendered_env_map)
+                Ok(Some(rendered_env_map))
             }
         } else {
-            None
-        };
-
-        Ok(crate::config::McpServer {
-            command,
-            args: rendered_args,
-            env: rendered_env,
-            other: HashMap::new(),
-        })
+            Ok(None)
+        }
     }
 
     /// Validate template variables
@@ -541,8 +614,9 @@ mod tests {
                 vars
             },
             config: TemplateConfig {
-                command: "echo".to_string(),
-                args: vec!["test".to_string()],
+                command: Some("echo".to_string()),
+                args: Some(vec!["test".to_string()]),
+                url: None,
                 env: None,
             },
             requirements: None,
