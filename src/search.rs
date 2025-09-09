@@ -51,6 +51,7 @@ pub struct ServerInfo {
     pub name: String,
     pub command: String,
     pub args: Vec<String>,
+    pub url: Option<String>,
     pub env: Option<HashMap<String, String>>,
     pub template: Option<String>,
     pub tags: Vec<String>,
@@ -65,6 +66,7 @@ impl From<(String, McpServer)> for ServerInfo {
             name,
             command: server.command.unwrap_or_default(),
             args: server.args.unwrap_or_default(),
+            url: server.url,
             env: server.env,
             template: None, // Will be enriched if available
             tags: vec![],   // Will be enriched if available
@@ -192,18 +194,21 @@ fn format_as_table(servers: &[ServerInfo], options: &ListOptions) -> String {
 
     // Header
     output.push_str("┌─────────────────────┬─────────────────────┬─────────────────────┐\n");
-    output.push_str("│ Name                │ Command             │ Arguments           │\n");
+    output.push_str("│ Name                │ Type/Command        │ Details             │\n");
     output.push_str("├─────────────────────┼─────────────────────┼─────────────────────┤\n");
 
     // Rows
     for server in servers {
         let name = truncate_string(&server.name, 19);
-        let command = truncate_string(&server.command, 19);
-        let args = truncate_string(&server.args.join(" "), 19);
+        let (type_cmd, details) = if let Some(url) = &server.url {
+            ("URL".to_string(), truncate_string(&crate::utils::mask_sensitive_url(url), 19))
+        } else {
+            (truncate_string(&server.command, 19), truncate_string(&server.args.join(" "), 19))
+        };
 
         output.push_str(&format!(
             "│ {:<19} │ {:<19} │ {:<19} │\n",
-            name, command, args
+            name, type_cmd, details
         ));
     }
 
@@ -238,10 +243,16 @@ fn format_as_default(servers: &[ServerInfo], options: &ListOptions) -> String {
 
     for server in servers {
         output.push_str(&format!("• {}\n", server.name));
-        output.push_str(&format!("  Command: {}\n", server.command));
-
-        if !server.args.is_empty() {
-            output.push_str(&format!("  Args: {}\n", server.args.join(" ")));
+        
+        // Display URL or Command based on server type
+        if let Some(url) = &server.url {
+            let masked_url = crate::utils::mask_sensitive_url(url);
+            output.push_str(&format!("  URL: {}\n", masked_url));
+        } else if !server.command.is_empty() {
+            output.push_str(&format!("  Command: {}\n", server.command));
+            if !server.args.is_empty() {
+                output.push_str(&format!("  Args: {}\n", server.args.join(" ")));
+            }
         }
 
         if let Some(env) = &server.env {
@@ -504,6 +515,7 @@ mod tests {
                 name: "zebra".to_string(),
                 command: "z".to_string(),
                 args: vec![],
+                url: None,
                 env: None,
                 template: None,
                 tags: vec![],
@@ -515,6 +527,7 @@ mod tests {
                 name: "alpha".to_string(),
                 command: "a".to_string(),
                 args: vec![],
+                url: None,
                 env: None,
                 template: None,
                 tags: vec![],

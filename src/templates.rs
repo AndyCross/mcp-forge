@@ -90,6 +90,7 @@ impl TemplateConfig {
     }
 
     /// Check if this is a command-type template
+    #[allow(dead_code)] // For API consistency with is_url_template
     pub fn is_command_template(&self) -> bool {
         self.command.is_some()
     }

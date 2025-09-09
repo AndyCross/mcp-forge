@@ -111,11 +111,13 @@ impl McpServer {
     }
 
     /// Check if this is a command-type server
+    #[allow(dead_code)] // Used in tests and for future API consistency
     pub fn is_command_server(&self) -> bool {
         self.command.is_some()
     }
 
     /// Validate the server configuration
+    #[allow(dead_code)] // May be used in future validation workflows
     pub fn validate(&self) -> Result<()> {
         // A server must have either a URL or a command, but not both
         match (self.url.as_ref(), self.command.as_ref()) {
@@ -137,6 +139,7 @@ impl McpServer {
     }
 
     /// Get a display string for the server type
+    #[allow(dead_code)] // Used in tests and for future display features
     pub fn server_type(&self) -> &str {
         if self.is_url_server() {
             "url"
